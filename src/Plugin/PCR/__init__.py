@@ -146,7 +146,7 @@ class PCRBOT(IPlugin):
         self.logger.info("载入 PCR 插件")
         self.redis = Redis(host='127.0.0.1', port=6379,
                            db=0, decode_responses=True)
-        self.currentPeriod = "Leo"
+        self.currentPeriod = "202008"
         self.pcr = PCR({
             'database': "pcr",
             'host': '127.0.0.1',
