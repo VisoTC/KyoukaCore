@@ -9,7 +9,7 @@ class Damage(BaseModel):
     stage = IntegerField()
     step = IntegerField()
     group = IntegerField()
-    member = IntegerField()
+    member = BigIntegerField()
     damage = IntegerField()
     kill = BooleanField()
 
