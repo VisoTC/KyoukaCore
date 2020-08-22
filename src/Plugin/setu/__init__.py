@@ -19,5 +19,5 @@ class Setu(IPlugin):
         if len(apikey) == 0:
             
         r = requests.get('https://api.lolicon.app/setu/',params={
-            'apikey':'845714935f375e84ca5f32'
-        })
+            'apikey':apikey
+        })# TODO 等我有空再写
