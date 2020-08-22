@@ -1,0 +1,9 @@
+.venv
+.vscode
+__pycache__
+/src/*.json
+/*.json
+*.db
+/tmp*.*
+OPQBOT
+msg_demo.json

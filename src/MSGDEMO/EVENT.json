@@ -1,0 +1,22 @@
+{
+    "CurrentPacket": {
+        "WebConnId": "g7uz5G9M-riWbaJQDvfo",
+        "Data": {
+            "EventData": {
+                "InviteUin": 0,
+                "UserID": 845922729,
+                "UserName": "懒得取名"
+            },
+            "EventMsg": {
+                "FromUin": 1090931393,
+                "ToUin": 1622376821,
+                "MsgType": "ON_EVENT_GROUP_JOIN",
+                "MsgSeq": 1518,
+                "Content": "某人进群事件",
+                "RedBaginfo": null
+            },
+            "EventName": "ON_EVENT_GROUP_JOIN"
+        }
+    },
+    "CurrentQQ": 1622376821
+}
