@@ -185,7 +185,7 @@ class OPQBOT(IBridge):
         self.sendMsg(payload)
         endtime = time.time()*1000
         if endtime - starttime < 900:
-            # time.sleep(900 - (endtime - starttime))  # 每次处理信息间隔900ms
+            time.sleep(900 - (endtime - starttime))  # 每次处理信息间隔900ms
             ...
 
     def __del__(self):
