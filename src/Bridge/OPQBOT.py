@@ -93,6 +93,9 @@ class OPQBOT(IBridge):
             elif payload['CurrentPacket']['Data']['MsgType'] == "AtMsg":
                 atContent = json.loads(
                     payload['CurrentPacket']['Data']['Content'])
+                Content = [TextMsg(atContent['Content'])]  
+                for aUser in atContent.get('UserID', None):
+                    Content.append(AtMsg(aUser))
                 tmp = MsgEvent(**{"bridge": payload['CurrentQQ'],
                                   "time": int(time.time()),
                                   "msgInfo": GroupMsgInfo(**{
@@ -101,7 +104,7 @@ class OPQBOT(IBridge):
                                       "UserId": payload['CurrentPacket']['Data']['FromUserId'],
                                       "UserName": payload['CurrentPacket']['Data']['FromNickName'],
                                   }),
-                                  "msgContent": TextMsg(atContent['Content'], atUser=atContent.get('UserID', None)),
+                                  "msgContent": Content,
                                   })
             else:
                 self.logger.info(json.dumps(payload))
