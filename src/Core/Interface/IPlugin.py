@@ -1,4 +1,4 @@
-from Core.Interface.Msg.MsgContent import MsgContent,TextMsg, AtMsg
+from Core.Interface.Msg.MsgContent import MsgContent, TextMsg, AtMsg
 from Core.Interface.Msg.MsgBase import MsgEvent
 from Core.Interface.Msg.MsgInfo import MsgInfo, GroupMsgInfo, PrivateMsgInfo
 
@@ -6,7 +6,8 @@ from typing import Dict, List, Union
 from Core.MsgBus import MsgBusPort
 from abc import ABCMeta, abstractmethod
 
-import threading,time
+import threading
+import time
 
 from Core.Config import Config, ConfigFactory
 from Core.Logger import LogSerivce
@@ -36,11 +37,11 @@ class IPlugin(threading.Thread, metaclass=ABCMeta):
         self._IPlugin__commandRoot: str = None  # 命令路由根目录
         self._IPlugin__command: Dict[str, List] = {}  # 回调字典
 
-        self._IBridge__init() # 初始化桥的内容
+        self._IBridge__init()  # 初始化桥的内容
 
         self._IPlugin__loadReady = Ready()  # 加载完成指示器
-        
-    def _IBridge__init(self):...# 仅在桥类可用
+
+    def _IBridge__init(self): ...  # 仅在桥类可用
 
     def loadDone(self):
         self.msgBusPort.name = "Plugin"
@@ -87,7 +88,6 @@ class IPlugin(threading.Thread, metaclass=ABCMeta):
         '''
         return self._IPlugin__config
 
-    
     @staticmethod
     @abstractmethod
     def pluginInfo():
@@ -101,7 +101,7 @@ class IPlugin(threading.Thread, metaclass=ABCMeta):
             "version": "1",  # 版本号
             "author": "Viso-TC",  # 作者
         }
-        
+
     def callback(self, func, msgInfo: MsgInfo):
         """
         注册一个消息回调
@@ -132,11 +132,9 @@ class IPlugin(threading.Thread, metaclass=ABCMeta):
         :param rootName: 根命令（不需要带/）
         """
         self._IPlugin__commandRoot = rootName
-        self.callback(self._IPlugin__CommandRouter,GroupMsgInfo(1,1,1,1))
+        self.callback(self._IPlugin__CommandRouter, GroupMsgInfo(1, 1, 1, 1))
 
-
-
-    def registerCommand(self, func, command: List[str],doc:str,kwargs:List[str]=list()):
+    def registerCommand(self, func, command: List[str], doc: str, kwargs: List[str] = list()):
         """
         TODO: 还没写完
         注册一条命令
@@ -154,16 +152,16 @@ class IPlugin(threading.Thread, metaclass=ABCMeta):
         for c in command:
             if not c in pointer.keys():
                 pointer[c] = {
-                    "func": None, 
-                    'kwargs':kwargs,
-                    'doc':doc,
+                    "func": None,
+                    'kwargs': kwargs,
+                    'doc': doc,
                     "sub": {}
                 }
             pointer = pointer[c]["sub"]
         else:
             pointer["func"] = func
 
-    def _reply(self, msg: MsgEvent, Contents: Union[List[MsgContent], MsgContent], atReply: bool=False):
+    def _reply(self, msg: MsgEvent, Contents: Union[List[MsgContent], MsgContent], atReply: bool = False):
         """
         快速回复帮助方法
         :param msg: 被回复的消息事件
@@ -176,10 +174,10 @@ class IPlugin(threading.Thread, metaclass=ABCMeta):
             Contents = [AtMsg(msg.msgInfo.UserId)] + Contents
 
         self.msgBusPort.send(MsgEvent(**{"bridge": msg.bridge,
-                                             "time": int(time.time()),
-                                             "msgInfo":msg.msgInfo,
-                                             "msgContent": Contents
-                                             }))
+                                         "time": int(time.time()),
+                                         "msgInfo": msg.msgInfo,
+                                         "msgContent": Contents
+                                         }))
 
     def _IPlugin__CommandRouter(self, msg):
         """
@@ -192,34 +190,32 @@ class IPlugin(threading.Thread, metaclass=ABCMeta):
                     msg.msgContent.content)
                 pointer = self._IPlugin__command
                 endindex = enumerate(commands) - 1
-                for i,command in enumerate(commands):
+                for i, command in enumerate(commands):
                     if i == 0:
-                        if not command == "/" + self._IPlugin__commandRoot:# 匹配不到根目录直接退出
+                        if not command == "/" + self._IPlugin__commandRoot:  # 匹配不到根目录直接退出
                             break
                     else:
-                        if i == endindex: #到达命令最后一位
-                            if pointer['func'] is None: # 没有匹配到命令
-                                self._reply(msg,TextMsg("无法匹配到可执行命令\n" + self._IPlugin__HelpCommand(pointer,commands))) # 调用帮助信息
-                        if len(pointer['sub']) == 0: # 没有子命令了 
+                        if i == endindex:  # 到达命令最后一位
+                            if pointer['func'] is None:  # 没有匹配到命令
+                                self._reply(msg, TextMsg(
+                                    "无法匹配到可执行命令\n" + self._IPlugin__HelpCommand(pointer, commands)))  # 调用帮助信息
+                        if len(pointer['sub']) == 0:  # 没有子命令了
                             pass
-                            
 
-    def _IPlugin__HelpCommand(self,pointer,ic,commands):
+    def _IPlugin__HelpCommand(self, pointer, ic, commands):
         contant = "/"
-        for i,c in enumerate(commands):
+        for i, c in enumerate(commands):
             if i > ic:
                 break
             contant += (c + " ")
         for arg in pointer['kwargs']:
-            contant += "<%s> "% arg
-        contant +=   ": "
+            contant += "<%s> " % arg
+        contant += ": "
         if pointer['doc'] is None or pointer['doc'] == "":
             contant += pointer['doc']
         else:
             contant += "无帮助信息"
         return contant
-        
-                    
 
     def _IPlugin__CommandSplitHelper(self, text):
         keep = None
@@ -242,7 +238,7 @@ class IPlugin(threading.Thread, metaclass=ABCMeta):
         :return: 转换后的文本
         :raise TypeError: 未定义的类转文本或非 MsgInfo 类及其子类
         """
-        try: # 如果是实例就让调用实例帮助类
+        try:  # 如果是实例就让调用实例帮助类
             issubclass(msgInfo, MsgInfo)
         except TypeError:
             return self._IPlugin__MsgInfoObj2StrHelper(msgInfo)
@@ -254,7 +250,7 @@ class IPlugin(threading.Thread, metaclass=ABCMeta):
             return "PrivateMsg"
         else:
             raise TypeError
-    
+
     def _IPlugin__MsgInfoObj2StrHelper(self, msgInfo: MsgInfo):
         """
         MsgInfo 实例 => 文本帮助方法
@@ -300,6 +296,8 @@ class IPlugin(threading.Thread, metaclass=ABCMeta):
                         func(msg)
                 except Exception as e:
                     self.logger.exception(e)
+                    self._reply(msg, TextMsg(
+                        "KyoukaCore: [%s]在处理消息内容时发生错误" % self.pluginInfo['name']),atReply=True)
                     continue
 
     def _IPlugin__setlogger(self):
