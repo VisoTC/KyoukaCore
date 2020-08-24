@@ -59,14 +59,7 @@ class PCRBOT(IPlugin):
                     return "请同时输入周目与 BOSS 位置"
             resp = self.pcr.reportScore(
                 gid, uid, int(damage), stage, step)
-            infos = self.pcr.queryDamageASMember(gid, uid)
-            # 计算刀数
-            k = 0
-            bk = 0
-            for info in infos:
-                k += 1
-                if info.kill == 1:
-                    bk += 1
+            k, bk = self.queryKnife(self.pcr.queryDamageASMember(gid, uid))
             kMsg = "今日已出{}刀（完整刀{}刀）".format(
                 str(k), str(k-bk))
             if resp[1]:
@@ -74,6 +67,17 @@ class PCRBOT(IPlugin):
             else:
                 sendMsg = "已造成伤害：{}\n{}\n{}"
             return sendMsg.format(format(int(damage), ','), kMsg, resp[0])
+
+    def queryKnife(self, l):
+        # 计算刀数
+        infos = l
+        k = 0
+        bk = 0
+        for info in infos:
+            k += 1
+            if info.kill == 1:
+                bk += 1
+        return k, bk
 
     def OnFromGroupMsg(self, msg):
         textMsg = None
@@ -161,14 +165,28 @@ class PCRBOT(IPlugin):
             elif textMsg.content.lower() == "/pcr boss情况":
                 self._reply(msg, TextMsg(str(
                     self.pcr.currentBossInfo(msg.msgInfo.GroupId))), atReply=True)
-            elif textMsg.content.lower() == "/pcr 我的情况":
+            elif textMsg.content[:7].lower() == "/pcr 查刀":
+                if not atMsg is None and len(atMsg.atUser) > 0:
+                    if self.kyoukaAPI.groupList(msg.bridge).get(msg.msgInfo.GroupId).member.get(msg.msgInfo.UserId).isAdmin:
+                        if len(atMsg.atUser) == 1:
+                            uid = atMsg.atUser[0]
+                        else:
+                            self._reply(msg, TextMsg(
+                                "PCR 报刀插件，需要@一个人,而你@了%s个" % len(atMsg)), atReply=True)
+                            return
+                    else:
+                        self._reply(msg, TextMsg(
+                            "PCR 报刀插件: 你必须是群管理员才有权限删除其他人的记录哦"), atReply=True)
+                        return
+                else:
+                    uid = msg.msgInfo.UserId
                 infos = self.pcr.queryDamageASMember(
-                    msg.msgInfo.GroupId, msg.msgInfo.UserId)
+                    msg.msgInfo.GroupId, uid)
                 sendMsg = ''
                 for info in infos:
                     sendMsg += str(info) + "\n"
-                self._reply(msg, TextMsg(
-                    sendMsg if len(sendMsg) != 0 else "今日还没有击败信息哦"), atReply=True)
+                self._reply(msg, [TextMsg(
+                    sendMsg if len(sendMsg) != 0 else "今日还没有击败信息哦"),AtMsg(uid)])
             elif textMsg.content[0:7].lower() == "/pcr 删刀":
                 if not atMsg is None and len(atMsg.atUser) > 0:
                     if self.kyoukaAPI.groupList(msg.bridge).get(msg.msgInfo.GroupId).member.get(msg.msgInfo.UserId).isAdmin:
@@ -191,9 +209,22 @@ class PCRBOT(IPlugin):
                 else:
                     self._reply(msg, TextMsg("记录：”{}“已被删除".format(str(d))
                                              ), atReply=True)
+            elif textMsg.content.lower() == "/pcr 催刀":
+                self.urgeReport(msg)
             elif textMsg.content[0:4] == "/pcr":
                 self._reply(msg, TextMsg(
-                    "PCR 报刀插件：当前可用命令\n报刀[伤害值]：报刀\n/pcr 报刀 [伤害值] <周目> <位置>：报刀拓展版\n/pcr 代刀 [伤害值] <周目> <位置><@人>：代报刀\n/pcr 删刀：删除五分钟之内的刀\n/pcr 删刀<@人>：[需要群管理员]删除被@的人五分钟之内的刀\n/pcr BOSS情况：返回当前 BOSS 信息\n/pcr 我的情况：返回今日的出刀情况"), atReply=True)
+                    "PCR 报刀插件：当前可用命令\n"+
+                    "报刀[伤害值]：报刀\n"+
+                    "/pcr 报刀 [伤害值] <周目> <位置>：报刀拓展版\n"+
+                    "/pcr 代刀 [伤害值] <周目> <位置><@人>：代报刀\n"+
+                    "/pcr 删刀：删除五分钟之内的刀\n"+
+                    "/pcr BOSS情况：返回当前 BOSS 信息\n"+
+                    "/pcr 查刀：返回今日的出刀情况\n"+
+                    "/pcr 催刀：自动@未出完三刀的群员并告知剩余刀数\n"+
+                    "/pcr 删刀<@人>：[需要群管理员]删除被@的人五分钟之内的刀\n"+
+                    "/pcr 查刀<@人>：[需要群管理员]删除被@的人五分钟之内的刀\n"+
+                    "注意：若以/开头的命令所有参数必须用半角空格风格，\n"+
+                    "　　　所有需要@人的不需要在命令和@之间插入空格"), atReply=True)
 
     def OnFromPrivateMsg(self, msg):
         if len(msg.msgContent) >= 1:
@@ -204,6 +235,30 @@ class PCRBOT(IPlugin):
                 elif msgText.content[0:4] == "/pcr":
                     self._reply(msg, TextMsg(
                         "PCR 报刀插件：当前可用命令\n/pcr login：登录到WebAPI"))
+
+    def urgeReport(self, msg):
+        remind = []
+        for m in self.kyoukaAPI.groupList(msg.bridge).get(msg.msgInfo.GroupId).member:
+            if m.uid == msg.bridge:  # 跳过自己
+                # continue
+                ...
+            k, bk = self.queryKnife(
+                self.pcr.queryDamageASMember(msg.msgInfo.GroupId, m.uid))
+            if k-bk < 3:  # 完整刀不足三刀
+                remind.append([m.uid, m.nickName, k-bk])
+        if len(remind) == 0:
+            self._reply(msg, TextMsg("耶，今天所有的群员都出完三刀了！"), atReply=True)
+            return
+        msgLink = [TextMsg("\nPCR 报刀插件：\n")]
+        atUser = []
+        for m in remind:
+            atUser.append(m[0])
+            msgLink.append(
+                TextMsg("[{}]今天还有{}刀没出哦\n".format(str(m[1]), str(
+                    3-m[2] if 3-m[2] >= 0 else 0
+                ))))
+        msgLink.append(AtMsg(atUser))
+        self._reply(msg, msgLink)
 
     def apiLogin(self, msg):
         code = msg.msgContent[0].content.replace("/pcr login ", "", 1)
