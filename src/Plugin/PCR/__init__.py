@@ -9,6 +9,8 @@ from Core.Interface.Msg.MsgBase import MsgEvent
 from Core.Interface.Msg.MsgInfo import GroupMsgInfo, PrivateMsgInfo
 from Core.Interface.Msg.MsgContent import AtMsg, MsgContent, TextMsg, PicMsg
 from redis import StrictRedis as Redis
+
+from Plugin.PCR.orm import damage
 from .main import PCR
 
 
@@ -42,16 +44,13 @@ class PCRBOT(IPlugin):
                                          "msgContent": [AtMsg(msg.msgInfo.UserId), TextMsg("复读："+msg.msgContent.content), ]
                                          }))
 
-    def report(self, msg: MsgEvent):
-        damage = msg.msgContent[0].content[2:]
+    def report(self, gid, uid, damage, stage=None, step=None):
+
         if not damage.isdigit():
-            self._reply(msg, TextMsg(
-                "PCR 报刀插件：需要输入整数哦", atUser=[msg.msgInfo.UserId]))
+            return "PCR 报刀插件：需要输入整数哦"
         else:
-            resp = self.pcr.reportScore(
-                msg.msgInfo.GroupId, msg.msgInfo.UserId, int(damage))
-            infos = self.pcr.queryDamageASMember(
-                msg.msgInfo.GroupId, msg.msgInfo.UserId)
+            resp = self.pcr.reportScore(gid, uid, int(damage), stage, step)
+            infos = self.pcr.queryDamageASMember(gid, uid)
             # 计算刀数
             k = 0
             bk = 0
@@ -65,32 +64,94 @@ class PCRBOT(IPlugin):
                 sendMsg = "已造成伤害：{}并击败\n{}\n{}"
             else:
                 sendMsg = "已造成伤害：{}\n{}\n{}"
-            self._reply(msg, TextMsg(
-                sendMsg.format(format(int(damage), ','), kMsg, resp[0])), atReply=True)
+            return sendMsg.format(format(int(damage), ','), kMsg, resp[0])
 
     def OnFromGroupMsg(self, msg):
-        if len(msg.msgContent) >= 1:
-            if isinstance(msg.msgContent[0], TextMsg):
-                msgText = msg.msgContent[0]
-                if self.currentPeriod is None:
+        textMsg = None
+        atMsg = None
+        for m in msg.msgContent:
+            if isinstance(m, TextMsg):
+                if textMsg is None:
+                    textMsg = m
+                else:
+                    self.logger.warn("重复消息链，抛弃")
+            if isinstance(m, AtMsg):
+                if atMsg is None:
+                    atMsg = m
+                else:
+                    self.logger.warn("重复消息链，抛弃")
+        if not textMsg is None:
+            if self.currentPeriod is None:
+                self._reply(msg, TextMsg(
+                    "PCR 报刀插件：尚未设置当前阶段，功能暂时不可用"), atReply=True)
+            if textMsg.content[0:2] == "报刀":
+                self._reply(msg, TextMsg(
+                            self.report(msg.msgInfo.GroupId,
+                                        msg.msgInfo.UserId,
+                                        msg.msgContent[0].content[2:])), atReply=True)
+            elif textMsg.content[0:7].lower() == "/pcr 报刀":
+                splitStr = textMsg.content[8:].split(" ")
+                damage = None
+                stage = None
+                step = None
+                if len(splitStr) == 1:
+                    damage = splitStr[0]
+                elif len(splitStr) == 3:
+                    damage = splitStr[0]
+                    stage = splitStr[0]
+                    step = splitStr[0]
+                else:
                     self._reply(msg, TextMsg(
-                        "PCR 报刀插件：尚未设置当前阶段，功能暂时不可用"), atReply=True)
-                if msgText.content[0:2] == "报刀":
-                    self.report(msg)
-                elif msgText.content.lower() == "/pcr BOSS情况":
+                        "PCR 报刀插件：参数错误，需要三个参数，而你却输入了 %s 个" % str(len(splitStr))), atReply=True)
+                    return
+                self._reply(msg, TextMsg(
+                    self.report(msg.msgInfo.GroupId,
+                                msg.msgInfo.UserId,
+                                damage,
+                                stage=stage,
+                                step=step)), atReply=True)
+            elif textMsg.content[0:7].lower() == "/pcr 代刀":
+                if atMsg is None:
                     self._reply(msg, TextMsg(
-                        self.pcr.currentBossInfo(msg.msgInfo.GroupId)), atReply=True)
-                elif msgText.content.lower() == "/pcr 我的情况":
-                    infos = self.pcr.queryDamageASMember(
-                        msg.msgInfo.GroupId, msg.msgInfo.UserId)
-                    sendMsg = ''
-                    for info in infos:
-                        sendMsg += str(info) + "\n"
+                        "PCR 报道插件，你需要@一个人才可以使用哦"), atReply=True)
+                elif len(atMsg.atUser) != 1:
                     self._reply(msg, TextMsg(
-                        sendMsg if len(sendMsg) != 0 else "今日还没有击败信息哦"), atReply=True)
-                elif msgText.content[0:4] == "/pcr":
+                        "PCR 报道插件，需要@一个人,而你@了%s个" % len(atMsg)), atReply=True)
+                else:
+                    splitStr = textMsg.content[8:].split(" ")
+                    damage = None
+                    stage = None
+                    step = None
+                    if len(splitStr) == 1:
+                        damage = splitStr[0]
+                    elif len(splitStr) == 3:
+                        damage = splitStr[0]
+                        stage = splitStr[0]
+                        step = splitStr[0]
+                    else:
+                        self._reply(msg, TextMsg(
+                            "PCR 报刀插件：参数错误，需要三个参数，而你却输入了 %s 个" % str(len(splitStr))), atReply=True)
+                        return
                     self._reply(msg, TextMsg(
-                        "PCR 报刀插件：当前可用命令\n报刀[伤害值]：报刀\n/pcr BOSS情况：返回当前 BOSS 信息\n/pcr 我的情况：返回今日的出刀情况"), atReply=True)
+                        self.report(msg.msgInfo.GroupId,
+                                    atMsg.atUser[0],
+                                    damage,
+                                    stage=stage,
+                                    step=step)), atReply=True)
+            elif textMsg.content.lower() == "/pcr BOSS情况":
+                self._reply(msg, TextMsg(
+                    self.pcr.currentBossInfo(msg.msgInfo.GroupId)), atReply=True)
+            elif textMsg.content.lower() == "/pcr 我的情况":
+                infos = self.pcr.queryDamageASMember(
+                    msg.msgInfo.GroupId, msg.msgInfo.UserId)
+                sendMsg = ''
+                for info in infos:
+                    sendMsg += str(info) + "\n"
+                self._reply(msg, TextMsg(
+                    sendMsg if len(sendMsg) != 0 else "今日还没有击败信息哦"), atReply=True)
+            elif textMsg.content[0:4] == "/pcr":
+                self._reply(msg, TextMsg(
+                    "PCR 报刀插件：当前可用命令\n报刀[伤害值]：报刀\n/pcr 报刀 [伤害值] <周目> <位置>：报刀拓展版\n/pcr 代刀 [伤害值] <周目> <位置>：代报刀\n/pcr BOSS情况：返回当前 BOSS 信息\n/pcr 我的情况：返回今日的出刀情况"), atReply=True)
 
     def OnFromPrivateMsg(self, msg):
         if len(msg.msgContent) >= 1:

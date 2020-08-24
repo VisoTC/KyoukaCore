@@ -58,6 +58,23 @@ class PCR(object):
         return BossInfoReturn(
             stage, step, damageTotal, hpIsDamage=True)
 
+    def BossInfo(self, group: int, stage, step) -> BossInfoReturn:
+        '''
+        获得指定周目的 BOSS 信息
+        :param group: 群 ID
+        :param stage: 强制设定当前周目
+        :param step: 强制设定当前位置
+        :return: 返回当前周目、阶段与剩余血量
+        '''
+        damageTotal = 0
+        for row in Damage.select().where(Damage.period == self.currentPeriod,
+                                         Damage.stage == stage,
+                                         Damage.step == step,
+                                         Damage.group == str(group)).order_by(Damage.time.desc()):
+            damageTotal += row.damage
+        return BossInfoReturn(
+            stage, step, damageTotal, hpIsDamage=True)
+
     def queryDamageASMember(self, group: int, member: str, date: str = "") -> List[DamageLogReturn]:
         '''
         查询成员出刀情况
@@ -88,24 +105,35 @@ class PCR(object):
                 row.group, row.member, row.stage, row.step, row.damage, row.kill, row.time))
         return DamageLog
 
-    def reportScore(self, group: int, member: str, damage: int) -> None:
+    def reportScore(self, group: int, member: str, damage: int, stage: int = None, step: int = None) -> None:
         '''
         对当前 BOSS 造成的伤害量
         :param group: 群 ID
         :param member: 成员
         :param damage: 造成的伤害
+        :param stage: 【可选】强制设定当前周目
+        :param step: 【可选】强制设定当前位置
         '''
         kill = False
-        beforeBOSSInfo = self.currentBossInfo(group)
+        if stage != None or step != None:  # 补报刀
+            if not (stage != None and step != None):   # 必须同时输入
+                raise ValueError
+            beforeBOSSInfo = self.BossInfo(
+                group, stage, step)  # 获得指定位置的 BOSS 信息
+        else:
+            beforeBOSSInfo = self.currentBossInfo(group)
         if beforeBOSSInfo.hp - damage <= 0:  # 击破
             kill = True
         Damage(time=int(time.time() * 1000),  # 储存毫秒
                period=self.currentPeriod,
-               stage=beforeBOSSInfo.stage,
-               step=beforeBOSSInfo.step,
+               stage=beforeBOSSInfo.stage if stage is None else stage,
+               step=beforeBOSSInfo.step if step is None else step,
                group=group,
                member=member,
                damage=damage,
                kill=kill).save()
-        currentBOSSInfo = self.currentBossInfo(group)
+        if stage != None and step != None:  # 必须同时输入
+            currentBOSSInfo = self.BossInfo(group, stage, step)
+        else:
+            currentBOSSInfo = self.currentBossInfo(group)
         return currentBOSSInfo, kill

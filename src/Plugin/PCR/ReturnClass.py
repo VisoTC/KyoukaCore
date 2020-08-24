@@ -29,6 +29,7 @@ class BossInfoReturn(Return):
         :param stage: 周目
         :param step: 位置
         :param hp: 当前血量
+        :param hpIsDamage: HP 参数为视作造成的伤害
         """
         self.stage = stage
         self.step = step

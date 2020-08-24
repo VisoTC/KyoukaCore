@@ -11,6 +11,7 @@ class Damage(BaseModel):
     group = IntegerField()
     member = BigIntegerField()
     damage = IntegerField()
+    reportDamage = IntegerField()
     kill = BooleanField()
 
     class Meta:
