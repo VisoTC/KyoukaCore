@@ -193,6 +193,8 @@ class PCRBOT(IPlugin):
         Groups = []
         for g in self.kyoukaAPI.groupList(msg.bridge):
             isAdmin = False
+            if g.member.get(myUid) is None: # 不是本群成员
+                continue
             if g.own.uid == myUid or g.member.get(myUid).isAdmin:
                 isAdmin = True
             m = []
