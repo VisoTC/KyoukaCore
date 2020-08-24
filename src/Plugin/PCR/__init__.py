@@ -49,8 +49,8 @@ class PCRBOT(IPlugin):
         if not damage.isdigit():
             return "PCR 报刀插件：需要输入整数哦"
         else:
-            if not (stage==None or step==None):
-                if not (stage==None and step==None):
+            if not (stage == None or step == None):
+                if not (stage == None and step == None):
                     if not stage >= 1:
                         return "PCR 报刀插件：周目需要大于1哦"
                     if not (step >= 1 or step < 6):
@@ -169,9 +169,31 @@ class PCRBOT(IPlugin):
                     sendMsg += str(info) + "\n"
                 self._reply(msg, TextMsg(
                     sendMsg if len(sendMsg) != 0 else "今日还没有击败信息哦"), atReply=True)
+            elif textMsg.content[0:7].lower() == "/pcr 删刀":
+                if not atMsg is None and len(atMsg.atUser) > 0:
+                    if self.kyoukaAPI.groupList(msg.bridge).get(msg.msgInfo.GroupId).member.get(msg.msgInfo.UserId).isAdmin:
+                        if len(atMsg.atUser) == 1:
+                            uid = atMsg.atUser[0]
+                        else:
+                            self._reply(msg, TextMsg(
+                                "PCR 报刀插件，需要@一个人,而你@了%s个" % len(atMsg)), atReply=True)
+                            return
+                    else:
+                        self._reply(msg, TextMsg(
+                            "PCR 报刀插件: 你必须是群管理员才有权限删除其他人的记录哦"), atReply=True)
+                        return
+                else:
+                    uid = msg.msgInfo.UserId
+                d = self.pcr.delLastScore(
+                    msg.msgInfo.GroupId, uid)
+                if d is None:
+                    self._reply(msg, TextMsg("找不到五分钟之内的报刀记录哦"), atReply=True)
+                else:
+                    self._reply(msg, TextMsg("记录：”{}“已被删除".format(str(d))
+                                             ), atReply=True)
             elif textMsg.content[0:4] == "/pcr":
                 self._reply(msg, TextMsg(
-                    "PCR 报刀插件：当前可用命令\n报刀[伤害值]：报刀\n/pcr 报刀 [伤害值] <周目> <位置>：报刀拓展版\n/pcr 代刀 [伤害值] <周目> <位置><@人>：代报刀\n/pcr BOSS情况：返回当前 BOSS 信息\n/pcr 我的情况：返回今日的出刀情况"), atReply=True)
+                    "PCR 报刀插件：当前可用命令\n报刀[伤害值]：报刀\n/pcr 报刀 [伤害值] <周目> <位置>：报刀拓展版\n/pcr 代刀 [伤害值] <周目> <位置><@人>：代报刀\n/pcr 删刀：删除五分钟之内的刀\n/pcr 删刀<@人>：[需要群管理员]删除被@的人五分钟之内的刀\n/pcr BOSS情况：返回当前 BOSS 信息\n/pcr 我的情况：返回今日的出刀情况"), atReply=True)
 
     def OnFromPrivateMsg(self, msg):
         if len(msg.msgContent) >= 1:
@@ -193,7 +215,7 @@ class PCRBOT(IPlugin):
         Groups = []
         for g in self.kyoukaAPI.groupList(msg.bridge):
             isAdmin = False
-            if g.member.get(myUid) is None: # 不是本群成员
+            if g.member.get(myUid) is None:  # 不是本群成员
                 continue
             if g.own.uid == myUid or g.member.get(myUid).isAdmin:
                 isAdmin = True
