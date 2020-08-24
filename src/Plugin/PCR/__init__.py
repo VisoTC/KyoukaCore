@@ -49,7 +49,16 @@ class PCRBOT(IPlugin):
         if not damage.isdigit():
             return "PCR 报刀插件：需要输入整数哦"
         else:
-            resp = self.pcr.reportScore(gid, uid, int(damage), stage, step)
+            if not (stage==None or step==None):
+                if not (stage==None and step==None):
+                    if not stage >= 1:
+                        return "PCR 报刀插件：周目需要大于1哦"
+                    if not (step >= 1 or step < 6):
+                        return "PCR 报刀插件：BOSS 位置需要在 1-5 之间哦"
+                else:
+                    return "请同时输入周目与 BOSS 位置"
+            resp = self.pcr.reportScore(
+                gid, uid, int(damage), stage, step)
             infos = self.pcr.queryDamageASMember(gid, uid)
             # 计算刀数
             k = 0
@@ -98,8 +107,9 @@ class PCRBOT(IPlugin):
                     damage = splitStr[0]
                 elif len(splitStr) == 3:
                     damage = splitStr[0]
-                    stage = splitStr[0]
-                    step = splitStr[0]
+                    damage = splitStr[0]
+                    stage = int(splitStr[1])
+                    step = int(splitStr[2])
                 else:
                     self._reply(msg, TextMsg(
                         "PCR 报刀插件：参数错误，需要三个参数，而你却输入了 %s 个" % str(len(splitStr))), atReply=True)
@@ -113,12 +123,17 @@ class PCRBOT(IPlugin):
             elif textMsg.content[0:7].lower() == "/pcr 代刀":
                 if atMsg is None:
                     self._reply(msg, TextMsg(
-                        "PCR 报道插件，你需要@一个人才可以使用哦"), atReply=True)
+                        "PCR 报刀插件，你需要@一个人才可以使用哦"), atReply=True)
                 elif len(atMsg.atUser) != 1:
                     self._reply(msg, TextMsg(
-                        "PCR 报道插件，需要@一个人,而你@了%s个" % len(atMsg)), atReply=True)
+                        "PCR 报刀插件，需要@一个人,而你@了%s个" % len(atMsg)), atReply=True)
                 else:
-                    splitStr = textMsg.content[8:].split(" ")
+                    splitStr = textMsg.content.split("@")
+                    if splitStr[0][0] != "/":
+                        self._reply(msg, TextMsg(
+                            "PCR 报刀插件：需要最先输入 /pcr 而不能直接@人再输入命令哦" % str(len(splitStr))), atReply=True)
+                        return
+                    splitStr = splitStr[0][8:].split(" ")
                     damage = None
                     stage = None
                     step = None
@@ -126,18 +141,23 @@ class PCRBOT(IPlugin):
                         damage = splitStr[0]
                     elif len(splitStr) == 3:
                         damage = splitStr[0]
-                        stage = splitStr[0]
-                        step = splitStr[0]
+                        stage = int(splitStr[1])
+                        step = int(splitStr[2])
                     else:
                         self._reply(msg, TextMsg(
                             "PCR 报刀插件：参数错误，需要三个参数，而你却输入了 %s 个" % str(len(splitStr))), atReply=True)
                         return
-                    self._reply(msg, TextMsg(
+                    if not (damage.isdigit() or stage.isdigit() or step.isdigit()):
+                        self._reply(msg, TextMsg(
+                            "PCR 报刀插件：参数错误，需要输入数字"), atReply=True)
+                        return
+                    self._reply(msg, [TextMsg(
                         self.report(msg.msgInfo.GroupId,
                                     atMsg.atUser[0],
                                     damage,
                                     stage=stage,
-                                    step=step)), atReply=True)
+                                    step=step)),
+                        AtMsg([atMsg.atUser[0]])])
             elif textMsg.content.lower() == "/pcr BOSS情况":
                 self._reply(msg, TextMsg(
                     self.pcr.currentBossInfo(msg.msgInfo.GroupId)), atReply=True)
@@ -151,7 +171,7 @@ class PCRBOT(IPlugin):
                     sendMsg if len(sendMsg) != 0 else "今日还没有击败信息哦"), atReply=True)
             elif textMsg.content[0:4] == "/pcr":
                 self._reply(msg, TextMsg(
-                    "PCR 报刀插件：当前可用命令\n报刀[伤害值]：报刀\n/pcr 报刀 [伤害值] <周目> <位置>：报刀拓展版\n/pcr 代刀 [伤害值] <周目> <位置>：代报刀\n/pcr BOSS情况：返回当前 BOSS 信息\n/pcr 我的情况：返回今日的出刀情况"), atReply=True)
+                    "PCR 报刀插件：当前可用命令\n报刀[伤害值]：报刀\n/pcr 报刀 [伤害值] <周目> <位置>：报刀拓展版\n/pcr 代刀 [伤害值] <周目> <位置><@人>：代报刀\n/pcr BOSS情况：返回当前 BOSS 信息\n/pcr 我的情况：返回今日的出刀情况"), atReply=True)
 
     def OnFromPrivateMsg(self, msg):
         if len(msg.msgContent) >= 1:
