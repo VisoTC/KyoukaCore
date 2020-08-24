@@ -93,7 +93,7 @@ class OPQBOT(IBridge):
             elif payload['CurrentPacket']['Data']['MsgType'] == "AtMsg":
                 atContent = json.loads(
                     payload['CurrentPacket']['Data']['Content'])
-                Content = [TextMsg(atContent['Content'])]  
+                Content = [TextMsg(atContent['Content'])]
                 for aUser in atContent.get('UserID', None):
                     Content.append(AtMsg(aUser))
                 tmp = MsgEvent(**{"bridge": payload['CurrentQQ'],
@@ -188,7 +188,7 @@ class OPQBOT(IBridge):
         self.sendMsg(payload)
         endtime = time.time()*1000
         if endtime - starttime < 900:
-            time.sleep(900 - (endtime - starttime))  # 每次处理信息间隔900ms
+            time.sleep((1000 - (endtime - starttime))/1000)  # 每次处理信息间隔1000ms
             ...
 
     def __del__(self):
@@ -236,7 +236,8 @@ class OPQBOT(IBridge):
             result = resp.json()
             for g in result['TroopList']:
                 GroupList.append(
-                    Group(g['GroupId'],g['GroupName'],g['GroupOwner'],self.getGroupMemberList(g['GroupId']))
+                    Group(g['GroupId'], g['GroupName'], g['GroupOwner'],
+                          self.getGroupMemberList(g['GroupId']))
                 )
             NextToken = result['NextToken']
         return GroupList
