@@ -123,14 +123,19 @@ class PCR(object):
         else:
             beforeBOSSInfo = self.currentBossInfo(group)
         if beforeBOSSInfo.hp - damage <= 0:  # 击破
+            trueDamage = beforeBOSSInfo.hp
             kill = True
+        else:
+            trueDamage = damage
+        
         Damage(time=int(time.time() * 1000),  # 储存毫秒
                period=self.currentPeriod,
                stage=beforeBOSSInfo.stage if stage is None else stage,
                step=beforeBOSSInfo.step if step is None else step,
                group=group,
                member=member,
-               damage=damage,
+               reportDamage=damage,
+               damage=trueDamage,
                kill=kill).save()
         if stage != None and step != None:  # 必须同时输入
             currentBOSSInfo = self.BossInfo(group, stage, step)
