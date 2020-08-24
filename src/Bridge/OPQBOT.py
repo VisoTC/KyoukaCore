@@ -94,7 +94,7 @@ class OPQBOT(IBridge):
                 atContent = json.loads(
                     payload['CurrentPacket']['Data']['Content'])
                 Content = [TextMsg(atContent['Content'])]
-                for aUser in atContent.get('UserID', None):
+                for aUser in atContent.get('UserID', []):
                     Content.append(AtMsg(aUser))
                 tmp = MsgEvent(**{"bridge": payload['CurrentQQ'],
                                   "time": int(time.time()),
@@ -136,7 +136,7 @@ class OPQBOT(IBridge):
                 "sendMsg error: OPQBot API ERROR -> " + resp.text())
 
     def OnSendMsg(self, msg):
-        starttime = time.time()*1000
+        starttime = time.time()
         # 初始化 Payload
         payload = {"groupid": 0,  # 仅临时会话需要
                    "atUser": 0}  # 有替代的方式了
@@ -186,10 +186,9 @@ class OPQBOT(IBridge):
                     "content": msg.msgContent.content,
                 })
         self.sendMsg(payload)
-        endtime = time.time()*1000
-        if endtime - starttime < 900:
-            time.sleep((1000 - (endtime - starttime))/1000)  # 每次处理信息间隔1000ms
-            ...
+        endtime = time.time()
+        if endtime - starttime < 0.9:
+            time.sleep((1 - (endtime - starttime)))  # 每次处理信息间隔1000ms
 
     def __del__(self):
         self.sio.disconnect()
