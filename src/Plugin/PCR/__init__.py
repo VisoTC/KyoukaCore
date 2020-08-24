@@ -158,7 +158,7 @@ class PCRBOT(IPlugin):
                                     stage=stage,
                                     step=step)),
                         AtMsg([atMsg.atUser[0]])])
-            elif textMsg.content.lower() == "/pcr BOSS情况":
+            elif textMsg.content.lower() == "/pcr boss情况":
                 self._reply(msg, TextMsg(
                     self.pcr.currentBossInfo(msg.msgInfo.GroupId)), atReply=True)
             elif textMsg.content.lower() == "/pcr 我的情况":
