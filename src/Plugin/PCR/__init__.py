@@ -159,8 +159,8 @@ class PCRBOT(IPlugin):
                                     step=step)),
                         AtMsg([atMsg.atUser[0]])])
             elif textMsg.content.lower() == "/pcr boss情况":
-                self._reply(msg, TextMsg(
-                    self.pcr.currentBossInfo(msg.msgInfo.GroupId)), atReply=True)
+                self._reply(msg, TextMsg(str(
+                    self.pcr.currentBossInfo(msg.msgInfo.GroupId))), atReply=True)
             elif textMsg.content.lower() == "/pcr 我的情况":
                 infos = self.pcr.queryDamageASMember(
                     msg.msgInfo.GroupId, msg.msgInfo.UserId)
