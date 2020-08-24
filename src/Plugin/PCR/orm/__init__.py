@@ -1,6 +1,9 @@
 from peewee import Model,MySQLDatabase
+from playhouse.shortcuts import ReconnectMixin
 
-db = MySQLDatabase(None)
+class ReconnectMySQLDatabase(ReconnectMixin,MySQLDatabase):...
+
+db = ReconnectMySQLDatabase(None)
 
 
 class BaseModel(Model):
