@@ -59,8 +59,14 @@ class PCRBOT(IPlugin):
                     return "请同时输入周目与 BOSS 位置"
             resp = self.pcr.reportScore(
                 gid, uid, int(damage), stage, step)
-            k, bk = self.queryKnife(self.pcr.queryDamageASMember(gid, uid))
-            kMsg = "今日已出{}刀（完整刀{}刀）".format(
+            queryDamage = self.pcr.queryDamageASMember(gid, uid)
+            k, bk = self.queryKnife(queryDamage)
+            kType = "正常"
+            if resp[1]:
+                kType = "尾刀"
+            if len(queryDamage) > 0 and queryDamage[len(queryDamage) - 1].kill:
+                kType = "补偿"
+            kMsg = "[]今日已出{}刀（完整刀{}刀）".format(
                 str(k), str(k-bk))
             if resp[1]:
                 sendMsg = "已造成伤害：{}并击败\n{}\n{}"
@@ -224,7 +230,7 @@ class PCRBOT(IPlugin):
                     "/pcr BOSS情况：返回当前 BOSS 信息\n" +
                     "/pcr 查刀：返回今日的出刀情况\n" +
                     "/pcr 催刀：自动@未出完三刀的群员并告知剩余刀数\n" +
-                    "/pcr 删刀<@人>：[需要群管理员]删除被@的人五分钟之内的刀\n" +
+                    "/pcr 删刀<@人>：[需要群管理员]删除被@的人的最后一刀\n" +
                     "/pcr 查刀<@人>：[需要群管理员]查询被@的人今日的出刀情况\n" +
                     "注意：若以/开头的命令所有参数必须用半角空格风格，\n" +
                     "　　　所有需要@人的不需要在命令和@之间插入空格"), atReply=True)
