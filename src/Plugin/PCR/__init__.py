@@ -226,8 +226,14 @@ class PCRBOT(IPlugin):
                 else:
                     self._reply(msg, TextMsg("记录：”{}“已被删除".format(str(d))
                                              ), atReply=True)
-            elif textMsg.content.lower() == "/pcr 催刀":
+            elif textMsg.content.lower() == "/pcr 剩刀":
                 self.urgeReport(msg)
+            elif textMsg.content.lower() == "/pcr 催刀":
+                if not self.memberIsAdmin(msg.bridge, msg.msgInfo.GroupId, msg.msgInfo.UserId):
+                    self._reply(msg, TextMsg(
+                        "PCR 报刀插件: 你必须是群管理员才有权限使用此命令哦\,若要查询剩下刀数请使用'/pcr 剩刀'"), atReply=True)
+                else:
+                    self.urgeReport(msg, True)
             elif textMsg.content[0:4] == "/pcr":
                 self._reply(msg, TextMsg(
                     "PCR 报刀插件：当前可用命令\n" +
@@ -237,11 +243,18 @@ class PCRBOT(IPlugin):
                     "/pcr 删刀：删除五分钟之内的刀\n" +
                     "/pcr BOSS情况：返回当前 BOSS 信息\n" +
                     "/pcr 查刀：返回今日的出刀情况\n" +
-                    "/pcr 催刀：自动@未出完三刀的群员并告知剩余刀数\n" +
+                    "/pcr 剩刀：报告未出完三刀的群员和告知剩余刀数\n" +
                     "/pcr 删刀<@人>：[需要群管理员]删除被@的人的最后一刀\n" +
                     "/pcr 查刀<@人>：[需要群管理员]查询被@的人今日的出刀情况\n" +
+                    "/pcr 催刀：[需要群管理员]自动@未出完三刀的群员并告知剩余刀数\n" +
                     "注意：若以/开头的命令所有参数必须用半角空格风格，\n" +
                     "　　　所有需要@人的不需要在命令和@之间插入空格"), atReply=True)
+
+    def memberIsAdmin(self, bridge, gid, uid):
+        try:
+            return self.kyoukaAPI.groupList(bridge).get(gid).member.get(uid).isAdmin
+        except:
+            return False
 
     def OnFromPrivateMsg(self, msg):
         if len(msg.msgContent) >= 1:
@@ -253,28 +266,53 @@ class PCRBOT(IPlugin):
                     self._reply(msg, TextMsg(
                         "PCR 报刀插件：当前可用命令\n/pcr login：登录到WebAPI"))
 
-    def urgeReport(self, msg):
-        remind = []
+    def urgeReport(self, msg: MsgEvent, at=False):
+        left = {
+            3: [],
+            2: [],
+            1: []
+        }
+        allLeftK = 0
         for m in self.kyoukaAPI.groupList(msg.bridge).get(msg.msgInfo.GroupId).member:
             if m.uid == msg.bridge:  # 跳过自己
-                continue
+                #continue
+                ...
             k, bk = self.queryKnife(
                 self.pcr.queryDamageASMember(msg.msgInfo.GroupId, m.uid))
             if k-bk < 3:  # 完整刀不足三刀
-                remind.append([m.uid, m.nickName, k-bk])
-        if len(remind) == 0:
+                if 3-(k-bk) == 3:
+                    allLeftK += 3
+                    left[3].append([m.uid, m.nickName])
+                elif 3-(k-bk) == 2:
+                    allLeftK += 2
+                    left[2].append([m.uid, m.nickName])
+                    allLeftK += 1
+                elif 3-(k-bk) == 1:
+                    left[1].append([m.uid, m.nickName])
+                else:
+                    continue
+        if allLeftK == 0:
             self._reply(msg, TextMsg("耶，今天所有的群员都出完三刀了！"), atReply=True)
             return
-        msgLink = [TextMsg("\nPCR 报刀插件：\n")]
-        atUser = []
-        for m in remind:
-            atUser.append(m[0])
-            msgLink.append(
-                TextMsg("[{}]今天还有{}刀没出哦\n".format(str(m[1]), str(
-                    3-m[2] if 3-m[2] >= 0 else 0
-                ))))
-        msgLink.append(AtMsg(atUser))
-        self._reply(msg, msgLink)
+        self._reply(msg, TextMsg("PCR报刀插件：当前还剩下{}刀".format(allLeftK)))
+        for k, l in left.items():
+            if len(l) == 0:
+                continue
+            if self.memberIsAdmin(msg.bridge, msg.msgInfo.GroupId, msg.msgInfo.UserId) and at:
+                msgLink = []
+                self._reply(msg, TextMsg("剩下{}刀({}人):\n".format(k, len(l))))
+                atUser = []
+                for u in l:
+                    atUser.append(u[0])
+                if len(atUser) != 0:
+                    self._reply(msg, AtMsg(atUser))
+            else:
+                userName = []
+                for u in l:
+                    userName.append(u[1])
+                if len(userName) != 0:
+                    self._reply(msg, TextMsg("剩下{}刀({}人):\n{}".format(
+                        k, len(l), '、'.join(userName))))
 
     def apiLogin(self, msg):
         code = msg.msgContent[0].content.replace("/pcr login ", "", 1)
