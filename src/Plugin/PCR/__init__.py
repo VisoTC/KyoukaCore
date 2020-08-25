@@ -243,12 +243,12 @@ class PCRBOT(IPlugin):
                     "/pcr 删刀：删除五分钟之内的刀\n" +
                     "/pcr BOSS情况：返回当前 BOSS 信息\n" +
                     "/pcr 查刀：返回今日的出刀情况\n" +
-                    "/pcr 剩刀：报告未出完三刀的群员和告知剩余刀数\n" +
+                    "/pcr 剩刀：报告未出完3刀的群员并告知剩余刀数\n" +
                     "/pcr 删刀<@人>：[需要群管理员]删除被@的人的最后一刀\n" +
                     "/pcr 查刀<@人>：[需要群管理员]查询被@的人今日的出刀情况\n" +
-                    "/pcr 催刀：[需要群管理员]自动@未出完三刀的群员并告知剩余刀数\n" +
+                    "/pcr 催刀：[需要群管理员]自动@未出完3刀的群员并告知剩余刀数\n" +
                     "注意：若以/开头的命令所有参数必须用半角空格风格，\n" +
-                    "　　　所有需要@人的不需要在命令和@之间插入空格"), atReply=True)
+                    "　　　所有需要@人的不需要在命令和@之间插入空格"))
 
     def memberIsAdmin(self, bridge, gid, uid):
         try:
@@ -285,8 +285,8 @@ class PCRBOT(IPlugin):
                 elif 3-(k-bk) == 2:
                     allLeftK += 2
                     left[2].append([m.uid, m.nickName])
-                    allLeftK += 1
                 elif 3-(k-bk) == 1:
+                    allLeftK += 1
                     left[1].append([m.uid, m.nickName])
                 else:
                     continue
@@ -298,7 +298,6 @@ class PCRBOT(IPlugin):
             if len(l) == 0:
                 continue
             if self.memberIsAdmin(msg.bridge, msg.msgInfo.GroupId, msg.msgInfo.UserId) and at:
-                msgLink = []
                 self._reply(msg, TextMsg("剩下{}刀({}人):\n".format(k, len(l))))
                 atUser = []
                 for u in l:
