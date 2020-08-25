@@ -128,7 +128,7 @@ class OPQBOT(IBridge):
         try:
             resp = resp.json()
             if resp.get('Ret', -1) != 0:
-                self.__opqObj.logger.error(
+                self.logger.error(
                     "sendMsg error:{} @ {}".format(resp.get('Ret', "UNKNOW"), resp.get('Msg', "UNKNOW")))
             return resp
         except ValueError:
