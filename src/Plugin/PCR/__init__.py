@@ -109,7 +109,7 @@ class PCRBOT(IPlugin):
                                         msg.msgInfo.UserId,
                                         msg.msgContent[0].content[2:])), atReply=True)
             elif textMsg.content[0:7].lower() == "/pcr 报刀":
-                if textMsg.content[8] != " ":
+                if textMsg.content[7] != " ":
                     self._reply(msg, TextMsg(
                         "PCR 报刀插件：指令之间需要插入空格哦"), atReply=True)
                     return
@@ -135,7 +135,7 @@ class PCRBOT(IPlugin):
                                 stage=stage,
                                 step=step)), atReply=True)
             elif textMsg.content[0:7].lower() == "/pcr 代刀":
-                if textMsg.content[8] != " ":
+                if textMsg.content[7] != " " and textMsg.content[7] != "@":
                     self._reply(msg, TextMsg(
                         "PCR 报刀插件：指令之间需要插入空格哦"), atReply=True)
                     return
