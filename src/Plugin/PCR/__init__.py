@@ -109,6 +109,10 @@ class PCRBOT(IPlugin):
                                         msg.msgInfo.UserId,
                                         msg.msgContent[0].content[2:])), atReply=True)
             elif textMsg.content[0:7].lower() == "/pcr 报刀":
+                if textMsg.content[8] != " ":
+                    self._reply(msg, TextMsg(
+                        "PCR 报刀插件：指令之间需要插入空格哦"), atReply=True)
+                    return
                 splitStr = textMsg.content[8:].split(" ")
                 damage = None
                 stage = None
@@ -131,6 +135,10 @@ class PCRBOT(IPlugin):
                                 stage=stage,
                                 step=step)), atReply=True)
             elif textMsg.content[0:7].lower() == "/pcr 代刀":
+                if textMsg.content[8] != " ":
+                    self._reply(msg, TextMsg(
+                        "PCR 报刀插件：指令之间需要插入空格哦"), atReply=True)
+                    return
                 if atMsg is None:
                     self._reply(msg, TextMsg(
                         "PCR 报刀插件，你需要@一个人才可以使用哦"), atReply=True)
@@ -212,7 +220,7 @@ class PCRBOT(IPlugin):
                 else:
                     uid = msg.msgInfo.UserId
                 d = self.pcr.delLastScore(
-                    msg.msgInfo.GroupId, uid,isAdmin)
+                    msg.msgInfo.GroupId, uid, isAdmin)
                 if d is None:
                     self._reply(msg, TextMsg("找不到五分钟之内的报刀记录哦"), atReply=True)
                 else:
