@@ -64,7 +64,7 @@ class PCRBOT(IPlugin):
             kType = "正常"
             if resp[1]:
                 kType = "尾刀"
-            if len(queryDamage) > 0 and queryDamage[len(queryDamage) - 1].kill:
+            elif len(queryDamage) > 0 and queryDamage[len(queryDamage) - 1].kill:
                 kType = "补偿"
             kMsg = "[{}]今日已出{}刀（完整刀{}刀）".format(kType,
                                                 str(k), str(k-bk))
