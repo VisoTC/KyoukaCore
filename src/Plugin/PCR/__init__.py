@@ -257,8 +257,7 @@ class PCRBOT(IPlugin):
         remind = []
         for m in self.kyoukaAPI.groupList(msg.bridge).get(msg.msgInfo.GroupId).member:
             if m.uid == msg.bridge:  # 跳过自己
-                # continue
-                ...
+                continue
             k, bk = self.queryKnife(
                 self.pcr.queryDamageASMember(msg.msgInfo.GroupId, m.uid))
             if k-bk < 3:  # 完整刀不足三刀
