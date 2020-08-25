@@ -66,8 +66,8 @@ class PCRBOT(IPlugin):
                 kType = "尾刀"
             if len(queryDamage) > 0 and queryDamage[len(queryDamage) - 1].kill:
                 kType = "补偿"
-            kMsg = "[]今日已出{}刀（完整刀{}刀）".format(
-                str(k), str(k-bk))
+            kMsg = "[{}]今日已出{}刀（完整刀{}刀）".format(kType,
+                                                str(k), str(k-bk))
             if resp[1]:
                 sendMsg = "已造成伤害：{}并击败\n{}\n{}"
             else:
