@@ -144,20 +144,27 @@ class PCR(object):
             currentBOSSInfo = self.currentBossInfo(group)
         return currentBOSSInfo, kill
 
-    def delLastScore(self, group: int, member: str):
+    def delLastScore(self, group: int, member: str,allTime = False):
         """
         删除报告的记录：指定对象的指定时间内的最后一条
         :param group: 群 ID
         :param member: 成员
+        :param allTime: 范围从五分钟内改为所有时间
         :return: 删除成功：DamageLogReturn, 找不到记录：None
         """
         try:
-            row = Damage.select().where(Damage.period == self.currentPeriod,
+            if allTime:
+                row = Damage.select().where(Damage.period == self.currentPeriod,
                                       Damage.group == group,
                                       Damage.member == member,
-                                      Damage.time > (int(
-                                          time.time())- (60*5))*1000
                                       ).order_by(Damage.time.desc()).get()
+            else:
+                row = Damage.select().where(Damage.period == self.currentPeriod,
+                                        Damage.group == group,
+                                        Damage.member == member,
+                                        Damage.time > (int(
+                                            time.time())- (60*5))*1000
+                                        ).order_by(Damage.time.desc()).get()
             row.delete_instance()
             return DamageLogReturn(
                 row.group, row.member, row.stage, row.step, row.damage, row.kill, row.time)

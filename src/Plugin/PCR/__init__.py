@@ -186,12 +186,15 @@ class PCRBOT(IPlugin):
                 for info in infos:
                     sendMsg += str(info) + "\n"
                 self._reply(msg, [TextMsg(
-                    sendMsg if len(sendMsg) != 0 else "今日还没有击败信息哦"),AtMsg(uid)])
+                    sendMsg if len(sendMsg) != 0 else "今日还没有击败信息哦"), AtMsg(uid)])
             elif textMsg.content[0:7].lower() == "/pcr 删刀":
+                isAdmin = False
                 if not atMsg is None and len(atMsg.atUser) > 0:
                     if self.kyoukaAPI.groupList(msg.bridge).get(msg.msgInfo.GroupId).member.get(msg.msgInfo.UserId).isAdmin:
                         if len(atMsg.atUser) == 1:
                             uid = atMsg.atUser[0]
+                            isAdmin = self.kyoukaAPI.groupList(msg.bridge).get(
+                                msg.msgInfo.GroupId).member.get(msg.msgInfo.UserId).isAdmin
                         else:
                             self._reply(msg, TextMsg(
                                 "PCR 报刀插件，需要@一个人,而你@了%s个" % len(atMsg)), atReply=True)
@@ -203,7 +206,7 @@ class PCRBOT(IPlugin):
                 else:
                     uid = msg.msgInfo.UserId
                 d = self.pcr.delLastScore(
-                    msg.msgInfo.GroupId, uid)
+                    msg.msgInfo.GroupId, uid,isAdmin)
                 if d is None:
                     self._reply(msg, TextMsg("找不到五分钟之内的报刀记录哦"), atReply=True)
                 else:
@@ -213,17 +216,17 @@ class PCRBOT(IPlugin):
                 self.urgeReport(msg)
             elif textMsg.content[0:4] == "/pcr":
                 self._reply(msg, TextMsg(
-                    "PCR 报刀插件：当前可用命令\n"+
-                    "报刀[伤害值]：报刀\n"+
-                    "/pcr 报刀 [伤害值] <周目> <位置>：报刀拓展版\n"+
-                    "/pcr 代刀 [伤害值] <周目> <位置><@人>：代报刀\n"+
-                    "/pcr 删刀：删除五分钟之内的刀\n"+
-                    "/pcr BOSS情况：返回当前 BOSS 信息\n"+
-                    "/pcr 查刀：返回今日的出刀情况\n"+
-                    "/pcr 催刀：自动@未出完三刀的群员并告知剩余刀数\n"+
-                    "/pcr 删刀<@人>：[需要群管理员]删除被@的人五分钟之内的刀\n"+
-                    "/pcr 查刀<@人>：[需要群管理员]查询被@的人今日的出刀情况\n"+
-                    "注意：若以/开头的命令所有参数必须用半角空格风格，\n"+
+                    "PCR 报刀插件：当前可用命令\n" +
+                    "报刀[伤害值]：报刀\n" +
+                    "/pcr 报刀 [伤害值] <周目> <位置>：报刀拓展版\n" +
+                    "/pcr 代刀 [伤害值] <周目> <位置><@人>：代报刀\n" +
+                    "/pcr 删刀：删除五分钟之内的刀\n" +
+                    "/pcr BOSS情况：返回当前 BOSS 信息\n" +
+                    "/pcr 查刀：返回今日的出刀情况\n" +
+                    "/pcr 催刀：自动@未出完三刀的群员并告知剩余刀数\n" +
+                    "/pcr 删刀<@人>：[需要群管理员]删除被@的人五分钟之内的刀\n" +
+                    "/pcr 查刀<@人>：[需要群管理员]查询被@的人今日的出刀情况\n" +
+                    "注意：若以/开头的命令所有参数必须用半角空格风格，\n" +
                     "　　　所有需要@人的不需要在命令和@之间插入空格"), atReply=True)
 
     def OnFromPrivateMsg(self, msg):
