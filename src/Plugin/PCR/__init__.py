@@ -45,7 +45,6 @@ class PCRBOT(IPlugin):
                                          }))
 
     def report(self, gid, uid, damage, stage=None, step=None):
-
         if not damage.isdigit():
             return "PCR 报刀插件：需要输入整数哦"
         else:
@@ -60,30 +59,14 @@ class PCRBOT(IPlugin):
             resp = self.pcr.reportScore(
                 gid, uid, int(damage), stage, step)
             queryDamage = self.pcr.queryDamageASMember(gid, uid)
-            k, bk = self.queryKnife(queryDamage)
-            kType = "正常"
-            if resp[1]:
-                kType = "尾刀"
-            elif len(queryDamage) > 1 and queryDamage[len(queryDamage) - 2].kill:
-                kType = "补偿"
-            kMsg = "[{}]今日已出{}刀（完整刀{}刀）".format(kType,
-                                                str(k), str(k-bk))
+            allK, fullK = queryDamage.getK()
+            kMsg = "[{}]今日已出{}刀（完整刀{}刀）".format(queryDamage[-1].KType,
+                                                str(allK), str(fullK))
             if resp[1]:
                 sendMsg = "已造成伤害：{}并击败\n{}\n{}"
             else:
                 sendMsg = "已造成伤害：{}\n{}\n{}"
             return sendMsg.format(format(int(damage), ','), kMsg, resp[0])
-
-    def queryKnife(self, l):
-        # 计算刀数
-        infos = l
-        k = 0
-        bk = 0
-        for info in infos:
-            k += 1
-            if info.kill == 1:
-                bk += 1
-        return k, bk
 
     def OnFromGroupMsg(self, msg):
         textMsg = None
@@ -176,7 +159,7 @@ class PCRBOT(IPlugin):
                                     stage=stage,
                                     step=step)),
                         AtMsg([atMsg.atUser[0]])])
-            elif textMsg.content.lower() == "/pcr boss情况":
+            elif textMsg.content.lower() == "/pcr boss情况" or textMsg.content.lower() == "/pcr boss":
                 self._reply(msg, TextMsg(str(
                     self.pcr.currentBossInfo(msg.msgInfo.GroupId))), atReply=True)
             elif textMsg.content[:7].lower() == "/pcr 查刀":
@@ -186,7 +169,7 @@ class PCRBOT(IPlugin):
                             uid = atMsg.atUser[0]
                         else:
                             self._reply(msg, TextMsg(
-                                "PCR 报刀插件，需要@一个人,而你@了%s个" % len(atMsg)), atReply=True)
+                                "PCR 报刀插件：需要@一个人,而你@了%s个" % len(atMsg)), atReply=True)
                             return
                     else:
                         self._reply(msg, TextMsg(
@@ -196,11 +179,21 @@ class PCRBOT(IPlugin):
                     uid = msg.msgInfo.UserId
                 infos = self.pcr.queryDamageASMember(
                     msg.msgInfo.GroupId, uid)
-                sendMsg = ''
-                for info in infos:
-                    sendMsg += str(info) + "\n"
-                self._reply(msg, [TextMsg(
-                    sendMsg if len(sendMsg) != 0 else "今日还没有击败信息哦"), AtMsg(uid)])
+                smsg = []
+                if len(infos) != 0:
+                    allK, fullK = infos.getK()
+                    smsg.append("今日已出{all}刀（完整{full}刀）还剩下{left}刀".format(all=allK, full=fullK, left=3-fullK))
+                    for info in infos:
+                        smsg.append("[{kname}]{time} {stage}周目{step}王{damage}".format(kname=info.KType,
+                                                                                     time=info.timeStr,
+                                                                                     stage=info.stage,
+                                                                                     step=info.step,
+                                                                                     damage=format(
+                                                                                         info.damage, ',')))
+                else:
+                    smsg.append("PCR 报刀插件: 今日还未出刀哦")                                                              
+                sendMsg = "\n".join(smsg)
+                self._reply(msg, [TextMsg(sendMsg), AtMsg(uid)])
             elif textMsg.content[0:7].lower() == "/pcr 删刀":
                 isAdmin = False
                 if not atMsg is None and len(atMsg.atUser) > 0:
@@ -241,7 +234,7 @@ class PCRBOT(IPlugin):
                     "/pcr 报刀 [伤害值] <周目> <位置>：报刀拓展版\n" +
                     "/pcr 代刀 [伤害值] <周目> <位置><@人>：代报刀\n" +
                     "/pcr 删刀：删除五分钟之内的刀\n" +
-                    "/pcr BOSS情况：返回当前 BOSS 信息\n" +
+                    "/pcr BOSS：返回当前 BOSS 信息\n" +
                     "/pcr 查刀：返回今日的出刀情况\n" +
                     "/pcr 剩刀：报告未出完3刀的群员并告知剩余刀数\n" +
                     "/pcr 删刀<@人>：[需要群管理员]删除被@的人的最后一刀\n" +
@@ -276,16 +269,17 @@ class PCRBOT(IPlugin):
         for m in self.kyoukaAPI.groupList(msg.bridge).get(msg.msgInfo.GroupId).member:
             if m.uid == msg.bridge:  # 跳过自己
                 continue
-            k, bk = self.queryKnife(
-                self.pcr.queryDamageASMember(msg.msgInfo.GroupId, m.uid))
-            if k-bk < 3:  # 完整刀不足三刀
-                if 3-(k-bk) == 3:
+            queryDamage = self.pcr.queryDamageASMember(
+                msg.msgInfo.GroupId, m.uid)
+            _, fullK = queryDamage.getK()
+            if fullK < 3:  # 完整刀不足三刀
+                if 3-fullK == 3:
                     allLeftK += 3
                     left[3].append([m.uid, m.nickName])
-                elif 3-(k-bk) == 2:
+                elif 3-fullK == 2:
                     allLeftK += 2
                     left[2].append([m.uid, m.nickName])
-                elif 3-(k-bk) == 1:
+                elif 3-fullK == 1:
                     allLeftK += 1
                     left[1].append([m.uid, m.nickName])
                 else:
@@ -375,7 +369,7 @@ class PCRBOT(IPlugin):
 def no():
     import sqlite3
     from Class.DataBase import SqliteDataBase
-    from plugin.PCR.main import PCR
+    #from plugin.PCR.main import PCR
 
     s = SqliteDataBase("t.db")  # :memory:
     s.origin.execute('''CREATE TABLE "damage" (

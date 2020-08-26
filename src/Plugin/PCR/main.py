@@ -4,8 +4,8 @@ from typing import Dict, List, Literal
 
 import json
 from Class.utli import tz_UTC
-from peewee import MySQLDatabase, Ordering,Model
-from .ReturnClass import BossInfoReturn, DamageLogReturn
+from peewee import MySQLDatabase, Ordering, Model
+from .ReturnClass import BossInfoReturn, DamageLogListReturn, DamageLogReturn
 from datetime import datetime, timedelta
 from . import orm
 from .orm.damage import Damage
@@ -76,7 +76,7 @@ class PCR(object):
         return BossInfoReturn(
             stage, step, damageTotal, hpIsDamage=True)
 
-    def queryDamageASMember(self, group: int, member: str, date: str = "") -> List[DamageLogReturn]:
+    def queryDamageASMember(self, group: int, member: str, date: str = "") -> DamageLogListReturn:
         '''
         查询成员出刀情况
         :param group: 群 ID
@@ -95,15 +95,36 @@ class PCR(object):
         queryEndTime = int(
             (queryStartTime + timedelta(days=1)).timestamp() * 1000)
         queryStartTime = int(queryStartTime.timestamp()*1000)
-        DamageLog: List[DamageLogReturn] = []
-
+        DamageLog = DamageLogListReturn()
+        # 连续击杀计数
+        ConsecutiveKills = 0
+        # 上一刀是否击杀
+        nextMakeUp = False
         for row in Damage.select().where(Damage.period == self.currentPeriod,
                                          Damage.group == group,
                                          Damage.member == member,
                                          Damage.time >= queryStartTime,
                                          Damage.time < queryEndTime):
-            DamageLog.append(DamageLogReturn(
-                row.group, row.member, row.stage, row.step, row.damage, row.kill, row.time))
+            # 连续击杀计数
+            if row.kill:
+                ConsecutiveKills += 1
+            else:
+                ConsecutiveKills = 0
+            # 连续击败的奇数刀是尾刀，偶数是补偿尾刀
+            if ConsecutiveKills > 0 and ConsecutiveKills % 2 == 0:
+                DamageLog.append(DamageLogReturn(
+                    row.group, row.member, row.stage, row.step, row.damage, row.kill, row.time, t=3))
+                nextMakeUp = False # 补偿尾刀不需要补偿
+            else:
+                # 上一刀击杀-补偿刀
+                if nextMakeUp:
+                    DamageLog.append(DamageLogReturn(
+                        row.group, row.member, row.stage, row.step, row.damage, row.kill, row.time, t=2))
+                # 上一刀啥都不是
+                else:
+                    DamageLog.append(DamageLogReturn(
+                        row.group, row.member, row.stage, row.step, row.damage, row.kill, row.time, t=0 if not row.kill else 1))  # 击杀了就是尾刀
+                nextMakeUp = row.kill# 本刀击杀下刀补偿
         return DamageLog
 
     def reportScore(self, group: int, member: str, damage: int, stage: int = None, step: int = None) -> None:
@@ -144,7 +165,7 @@ class PCR(object):
             currentBOSSInfo = self.currentBossInfo(group)
         return currentBOSSInfo, kill
 
-    def delLastScore(self, group: int, member: str,allTime = False):
+    def delLastScore(self, group: int, member: str, allTime=False):
         """
         删除报告的记录：指定对象的指定时间内的最后一条
         :param group: 群 ID
@@ -155,16 +176,16 @@ class PCR(object):
         try:
             if allTime:
                 row = Damage.select().where(Damage.period == self.currentPeriod,
-                                      Damage.group == group,
-                                      Damage.member == member,
-                                      ).order_by(Damage.time.desc()).get()
+                                            Damage.group == group,
+                                            Damage.member == member,
+                                            ).order_by(Damage.time.desc()).get()
             else:
                 row = Damage.select().where(Damage.period == self.currentPeriod,
-                                        Damage.group == group,
-                                        Damage.member == member,
-                                        Damage.time > (int(
-                                            time.time())- (60*5))*1000
-                                        ).order_by(Damage.time.desc()).get()
+                                            Damage.group == group,
+                                            Damage.member == member,
+                                            Damage.time > (int(
+                                                time.time()) - (60*5))*1000
+                                            ).order_by(Damage.time.desc()).get()
             row.delete_instance()
             return DamageLogReturn(
                 row.group, row.member, row.stage, row.step, row.damage, row.kill, row.time)

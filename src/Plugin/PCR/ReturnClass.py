@@ -1,3 +1,4 @@
+from collections import UserList
 import re
 from Class.utli import tz_UTC
 from datetime import datetime
@@ -54,13 +55,13 @@ class BossInfoReturn(Return):
             return 1000000 * 20
 
     def __str__(self):
-        return "当前{stage}周目{step}王，{hp}/{fullHP}({percentage:.1%})".format(stage=self.stage, step=self.step, hp=format(self.hp, ','), fullHP=format(self.fullHP, ','), percentage=self.hp/self.fullHP)
+        return "当前{stage}周目{step}王：{hp}/{fullHP}({percentage:.1%})".format(stage=self.stage, step=self.step, hp=format(self.hp, ','), fullHP=format(self.fullHP, ','), percentage=self.hp/self.fullHP)
 
 
 class DamageLogReturn(Return):
     """伤害日志"""
 
-    def __init__(self, group: int, member: str, stage: int, step: int, damage: int, kill: int, time: int) -> None:
+    def __init__(self, group: int, member: str, stage: int, step: int, damage: int, kill: int, time: int, t: int=-1) -> None:
         """
         :param group: 成员
         :param member: 成员
@@ -69,6 +70,7 @@ class DamageLogReturn(Return):
         :param damage: 造成的伤害
         :param kill: 是否击破
         :param time: 记录时间
+        :param t: 刀类型：0-正常；1-尾刀；2-补偿刀；3-补偿刀,尾刀
         """
         self.group = group
         self.member = member
@@ -77,16 +79,50 @@ class DamageLogReturn(Return):
         self.damage = damage
         self.kill = kill
         self.time = time
+        self.t = t
         self.readOnlyLock()
 
-    def __str__(self):
-        time = datetime.fromtimestamp(
-            self.time/1000, tz=tz_UTC(8)).strftime("%Y年%m月%d日%H:%M:%S")
-        if self.kill != 0:
-            msg = " {member}于{time}对{stage}周目{step}王造成了{damage}伤害并击败"
+    @property
+    def KType(self):
+        if self.t == 0:
+            return '正常刀'
+        elif self.t == 1:
+            return '尾刀'
+        elif self.t == 2:
+            return '补偿刀'
+        elif self.t == 3:
+            return '补偿刀,尾刀'
         else:
-            msg = " {member}于{time}对{stage}周目{step}王造成了{damage}伤害"
-        return msg.format(member=self.member, time=time, stage=self.stage, step=self.step, damage=self.damage)
+            return '类型: %s' % str(self.t)
+
+    @property
+    def timeStr(self):
+        return datetime.fromtimestamp(
+            self.time/1000, tz=tz_UTC(8)).strftime("%Y年%m月%d日%H:%M:%S")
+
+    def __str__(self):
+        if self.kill != 0:
+            msg = "{member}于{time}对{stage}周目{step}王造成了{damage}伤害并击败"
+        else:
+            msg = "{member}于{time}对{stage}周目{step}王造成了{damage}伤害"
+        return msg.format(member=self.member, time=self.timeStr, stage=self.stage, step=self.step, damage=self.damage)
+
+
+class DamageLogListReturn(UserList):
+    data: List[DamageLogReturn]
+
+    def getK(self):
+        """
+        返回剩余刀数
+        :return: 总刀数, 完整刀数
+        """
+        all = 0
+        makeUp = 0
+        for log in self.data:
+            all += 1
+            if log.t == 1: # 尾刀不是完整刀
+                makeUp += 1
+        return all, all-makeUp
 
 
 class ReportScoreReturn(Return):
