@@ -266,8 +266,9 @@ class PCRBOT(IPlugin):
             1: []
         }
         allLeftK = 0
+        skipUid = [int(msg.bridge),634108868]
         for m in self.kyoukaAPI.groupList(msg.bridge).get(msg.msgInfo.GroupId).member:
-            if m.uid == msg.bridge:  # 跳过自己
+            if int(m.uid) in skipUid:  # 跳过指定用户
                 continue
             queryDamage = self.pcr.queryDamageASMember(
                 msg.msgInfo.GroupId, m.uid)
