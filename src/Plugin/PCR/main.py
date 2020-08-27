@@ -1,3 +1,4 @@
+from enum import unique
 from logging import fatal
 import re
 from typing import Dict, List, Literal
@@ -5,10 +6,11 @@ from typing import Dict, List, Literal
 import json
 from Class.utli import tz_UTC
 from peewee import MySQLDatabase, Ordering, Model
-from .ReturnClass import BossInfoReturn, DamageLogListReturn, DamageLogReturn
+from .ReturnClass import BossInfoReturn, DamageLogListReturn, DamageLogReturn, ReserveReturn
 from datetime import datetime, timedelta
 from . import orm
 from .orm.damage import Damage
+from .orm.reserve import Reserve
 import time
 
 
@@ -29,10 +31,112 @@ class PCR(object):
         orm.db.connect()
         if not Damage.table_exists():
             Damage.create_table()
+        if not Reserve.table_exists():
+            Reserve.create_table()
         self.currentPeriod = currentPeriod
 
     def changePeriod(self, period):
         self.currentPeriod = period
+
+    def delReserve(self, gid: int, member: int, stage: int, step: int):
+        """
+        删除预约
+        :param gid: 群id
+        :param member: 群员id
+        :param stage: 预约阶段
+        :param step: 预约位置
+        """
+        try:
+            row = Reserve.select().where(Reserve.period == self.currentPeriod,
+                                         Reserve.group == gid,
+                                         Reserve.member == member,
+                                         Reserve.stage == stage,
+                                         Reserve.step == step,
+                                         ).get()
+
+            row.delete_instance()
+            return ReserveReturn(row)
+        except Damage.DoesNotExist:
+            return None
+
+    def reserveMemberList(self, gid: int, member):
+        """
+        查询指定成员预约记录, 仅返回未生效的
+        :param gid:
+        :param member:
+        """
+        current = self.currentBossInfo(gid)
+        if member is None:
+            rows = Reserve.select().where(Reserve.period == self.currentPeriod,
+                                          Reserve.group == gid,
+                                          Reserve.stage >= current.stage)
+        else:
+            rows = Reserve.select().where(Reserve.period == self.currentPeriod,
+                                          Reserve.group == gid,
+                                          Reserve.member == member,
+                                          Reserve.stage >= current.stage)
+        reserveList: Dict[int, List[int]] = {}
+        for row in rows:
+            if row.stage == current.stage:
+                if row.step <= current.step:
+                    continue
+            if not reserveList.get(row.stage, False):
+                reserveList[row.stage] = list()
+            reserveList[row.stage].append(row.step)
+        return reserveList
+
+    def reserveStepList(self, gid, stage, step):
+        """
+        返回预约指定阶段的用户列表
+        :param stage: 阶段
+        :param step: 位置（五王狂暴标记 6）
+        """
+        rows = Reserve.select().where(Reserve.period == self.currentPeriod,
+                                      Reserve.group == gid,
+                                      Reserve.stage == stage,
+                                      Reserve.step == step)
+        memberList = []
+        for row in rows:
+            memberList.append(row.member)
+        return memberList
+
+    def reserve(self, gid: int, member: int, stage: int, step: int):
+        """
+        预约出刀
+        :param gid:
+        :param member:
+        :param stage: 预约阶段（0为下一个）
+        :param step: 预约位置（五王狂暴标记 6）
+        :raise ValueError: 尝试预约当前王之前的预约
+        """
+        current = self.currentBossInfo(gid)
+        if stage <= current.stage and stage != 0:
+            raise ValueError
+        if step <= current.step and stage != 0:
+            raise ValueError
+        if step <= current.step:
+            stage = current.stage + 1
+        else:
+            stage = current.stage
+        # 判断是否重复预约
+        reserveList = self.reserveMemberList(gid, member)
+        if stage in reserveList.keys():
+            if step in reserveList[stage]:
+                return False
+
+        row = Reserve(gie=gid,
+                      member=member,
+                      group=gid,
+                      period=self.currentPeriod,
+                      stage=stage,
+                      step=step,
+                      time=int(time.time() * 1000)
+                      )
+        row.save()
+        return {
+            "stage": row.stage,
+            'step': row.step
+        }
 
     def currentBossInfo(self, group: int) -> BossInfoReturn:
         '''
@@ -45,7 +149,8 @@ class PCR(object):
         step = 1
         damageTotal = 0
         for row in Damage.select().where(Damage.period == self.currentPeriod,
-                                         Damage.group == str(group)).order_by(Damage.time.desc()):
+                                         Damage.group == str(group)
+                                         ).order_by(Damage.time.desc()):
             if row.stage > stage:
                 stage = row.stage
                 step = row.step
@@ -71,7 +176,8 @@ class PCR(object):
         for row in Damage.select().where(Damage.period == self.currentPeriod,
                                          Damage.stage == stage,
                                          Damage.step == step,
-                                         Damage.group == str(group)).order_by(Damage.time.desc()):
+                                         Damage.group == str(group)
+                                         ).order_by(Damage.time.desc()):
             damageTotal += row.damage
         return BossInfoReturn(
             stage, step, damageTotal, hpIsDamage=True)
@@ -114,7 +220,7 @@ class PCR(object):
             if ConsecutiveKills > 0 and ConsecutiveKills % 2 == 0:
                 DamageLog.append(DamageLogReturn(
                     row.group, row.member, row.stage, row.step, row.damage, row.kill, row.time, t=3))
-                nextMakeUp = False # 补偿尾刀不需要补偿
+                nextMakeUp = False  # 补偿尾刀不需要补偿
             else:
                 # 上一刀击杀-补偿刀
                 if nextMakeUp:
@@ -124,7 +230,7 @@ class PCR(object):
                 else:
                     DamageLog.append(DamageLogReturn(
                         row.group, row.member, row.stage, row.step, row.damage, row.kill, row.time, t=0 if not row.kill else 1))  # 击杀了就是尾刀
-                nextMakeUp = row.kill# 本刀击杀下刀补偿
+                nextMakeUp = row.kill  # 本刀击杀下刀补偿
         return DamageLog
 
     def reportScore(self, group: int, member: str, damage: int, stage: int = None, step: int = None) -> None:

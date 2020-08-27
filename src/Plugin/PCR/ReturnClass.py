@@ -132,3 +132,14 @@ class ReportScoreReturn(Return):
 
     def __init__(self, member: str, damage: int, bossInfoReturn: BossInfoReturn) -> None:
         return self.__init__(member, damage, bossInfoReturn.stage, bossInfoReturn.step, bossInfoReturn.hp)
+
+class ReserveReturn(Return):
+    def __init__(self,reserveORM) -> None:
+        self.id = reserveORM.id
+        self.time = reserveORM.time
+        self.period = reserveORM.period
+        self.stage = reserveORM.stage
+        self.step = reserveORM.step
+        self.group = reserveORM.group
+        self.member = reserveORM.member
+        self.readOnlyLock()
