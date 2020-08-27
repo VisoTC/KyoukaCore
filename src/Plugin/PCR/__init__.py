@@ -11,6 +11,7 @@ from Core.Interface.Msg.MsgContent import AtMsg, MsgContent, TextMsg, PicMsg
 from redis import StrictRedis as Redis
 
 from Plugin.PCR.orm import damage
+from Plugin.PCR.orm.reserve import Reserve
 from .main import PCR
 
 
@@ -480,7 +481,10 @@ class PCRBOT(IPlugin):
         """
         删除指定成员预约记录
         """
-        reserve = self.pcr.delReserve(gid, uid, stage, step)
+        try:
+            reserve = self.pcr.delReserve(gid, uid, stage, step)
+        except Reserve.DoesNotExist:
+            return TextMsg("未找到指定记录")
         if not reserve is None:
             return TextMsg("预约的{}王{}周目已被删除".format(reserve.stage, reserve.step))
         else:
