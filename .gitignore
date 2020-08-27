@@ -7,3 +7,4 @@ __pycache__
 /tmp*.*
 OPQBot
 msg_demo.json
+src/tmp.py
