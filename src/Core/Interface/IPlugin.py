@@ -297,7 +297,7 @@ class IPlugin(threading.Thread, metaclass=ABCMeta):
                 except Exception as e:
                     self.logger.exception(e)
                     self._reply(msg, TextMsg(
-                        "KyoukaCore: [%s]在处理消息内容时发生错误" % self.pluginInfo['name']),atReply=True)
+                        "KyoukaCore: [%s]在处理消息内容时发生错误" % self.pluginInfo['name']))
                     continue
 
     def _IPlugin__setlogger(self):
