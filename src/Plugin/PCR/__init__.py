@@ -120,10 +120,10 @@ class PCRBOT(IPlugin):
                         "PCR 报刀插件：参数错误，需要三个参数，而你却输入了 %s 个" % str(len(splitStr))), atReply=True)
                     return
                 report = self.report(msg.msgInfo.GroupId,
-                                msg.msgInfo.UserId,
-                                damage,
-                                stage=stage,
-                                step=step)
+                                     msg.msgInfo.UserId,
+                                     damage,
+                                     stage=stage,
+                                     step=step)
                 if isinstance(report, tuple):
                     sendMsg = report[0]
                     cInfo = report[1]
@@ -175,10 +175,10 @@ class PCRBOT(IPlugin):
                             "PCR 报刀插件：参数错误，需要输入数字"), atReply=True)
                         return
                     report = self.report(msg.msgInfo.GroupId,
-                                atMsg.atUser[0],
-                                damage,
-                                stage=stage,
-                                step=step)
+                                         atMsg.atUser[0],
+                                         damage,
+                                         stage=stage,
+                                         step=step)
                     if isinstance(report, tuple):
                         sendMsg = report[0]
                         cInfo = report[1]
@@ -186,7 +186,7 @@ class PCRBOT(IPlugin):
                         sendMsg = report
                         cInfo = False
                     self._reply(msg, [TextMsg(sendMsg),
-                        AtMsg([atMsg.atUser[0]])])
+                                      AtMsg([atMsg.atUser[0]])])
                     if cInfo:
                         self.checkReserve(msg, cInfo)
 
@@ -279,6 +279,9 @@ class PCRBOT(IPlugin):
                     self._reply(msg, TextMsg("需要输入数字，例如2，五王狂暴为6"))
                     return
                 step = int(step)
+                if step > 6:
+                    self._reply(msg, TextMsg("PCR 报刀插件：没有这么多BOSS给你打哦"))
+                    return
                 self._reply(msg, self.reserve(
                     msg.msgInfo.GroupId, msg.msgInfo.UserId, step))
 
