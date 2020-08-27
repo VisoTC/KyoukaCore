@@ -174,13 +174,21 @@ class PCRBOT(IPlugin):
                         self._reply(msg, TextMsg(
                             "PCR 报刀插件：参数错误，需要输入数字"), atReply=True)
                         return
-                    self._reply(msg, [TextMsg(
-                        self.report(msg.msgInfo.GroupId,
-                                    atMsg.atUser[0],
-                                    damage,
-                                    stage=stage,
-                                    step=step)),
+                    report = self.report(msg.msgInfo.GroupId,
+                                atMsg.atUser[0],
+                                damage,
+                                stage=stage,
+                                step=step)
+                    if isinstance(report, tuple):
+                        sendMsg = report[0]
+                        cInfo = report[1]
+                    else:
+                        sendMsg = report
+                        cInfo = False
+                    self._reply(msg, [TextMsg(sendMsg),
                         AtMsg([atMsg.atUser[0]])])
+                    if cInfo:
+                        self.checkReserve(msg, cInfo)
 
             elif textMsg.content.lower() == "/pcr boss情况" or textMsg.content.lower() == "/pcr boss":
                 self._reply(msg, TextMsg(str(
