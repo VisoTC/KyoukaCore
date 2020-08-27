@@ -107,16 +107,16 @@ class OPQBOT(IBridge):
                                   "msgContent": Content,
                                   })
             else:
-                self.logger.info(json.dumps(payload))
+                # self.logger.info(json.dumps(payload))
                 return
             self.msgBusPort.send(tmp)
         except Exception as e:
             self.logger.exception(e)  # 遇到问题咋们就逃避就行了
             return
 
-    def OnEvents(self, payload):
-        print("OnEvents")
-        print(payload)
+    def OnEvents(self, payload): ...
+    # print("OnEvents")
+    # print(payload)
 
     def sendMsg(self, payload):
         _payload = json.dumps(payload, ensure_ascii=False)
@@ -129,7 +129,7 @@ class OPQBOT(IBridge):
             resp = resp.json()
             if resp.get('Ret', -1) != 0:
                 self.logger.error(
-                    "sendMsg error:{} @ {}".format(resp.get('Ret', "UNKNOW"), resp.get('Msg', "UNKNOW")))
+                    "sendMsg error: OPQBot API ERROR -> Ret: {} MSG: {}".format(resp.get('Ret', "UNKNOW"), resp.get('Msg', "UNKNOW")))
             return resp
         except ValueError:
             self.__opqObj.logger.error(
