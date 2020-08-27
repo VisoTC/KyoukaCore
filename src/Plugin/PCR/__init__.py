@@ -499,7 +499,7 @@ class PCRBOT(IPlugin):
             self._reply(msg, [AtMsg(reserveList),
                               TextMsg(
                 " 预约的{}周目{}王到了".format(cInfo.stage, cInfo.step))])
-        elif cInfo.step == 5 and cInfo.hp <= cInfo.fullHP / 2 and cInfo.hp + damage > cInfo.fullHP / 2:  # 跨过半血狂暴线
+        elif cInfo.step == 5 and cInfo.hp <= cInfo.fullHP / 2 and cInfo.hp + int(damage) > cInfo.fullHP / 2:  # 跨过半血狂暴线
             reserveList = self.pcr.reserveStepList(
                 msg.msgInfo.GroupId, cInfo.stage, 6)
             if len(reserveList) == 0:
