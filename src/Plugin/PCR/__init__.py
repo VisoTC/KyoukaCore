@@ -99,7 +99,7 @@ class PCRBOT(IPlugin):
                     cInfo = False
                 self._reply(msg, TextMsg(sendMsg), atReply=True)
                 if cInfo:
-                    self.checkReserve(msg, cInfo)
+                    self.checkReserve(msg, cInfo,msg.msgContent[0].content[2:])
 
             elif textMsg.content[0:7].lower() == "/pcr 报刀":
                 if textMsg.content[7] != " ":
@@ -133,7 +133,7 @@ class PCRBOT(IPlugin):
                     cInfo = False
                 self._reply(msg, TextMsg(sendMsg), atReply=True)
                 if cInfo:
-                    self.checkReserve(msg, cInfo)
+                    self.checkReserve(msg, cInfo,damage)
 
             elif textMsg.content[0:7].lower() == "/pcr 代刀":
                 try:
@@ -189,7 +189,7 @@ class PCRBOT(IPlugin):
                     self._reply(msg, [TextMsg(sendMsg),
                                       AtMsg([atMsg.atUser[0]])])
                     if cInfo:
-                        self.checkReserve(msg, cInfo)
+                        self.checkReserve(msg, cInfo,damage)
 
             elif textMsg.content.lower() == "/pcr boss情况" or textMsg.content.lower() == "/pcr boss":
                 self._reply(msg, TextMsg(str(
@@ -490,16 +490,20 @@ class PCRBOT(IPlugin):
         else:
             return TextMsg("未找到指定记录")
 
-    def checkReserve(self, msg, cInfo):
+    def checkReserve(self, msg, cInfo, damage=-1):
         if cInfo.step <= 5 and cInfo.hp == cInfo.fullHP:
             reserveList = self.pcr.reserveStepList(
                 msg.msgInfo.GroupId, cInfo.stage, cInfo.step)
+            if len(reserveList) == 0:
+                return
             self._reply(msg, [AtMsg(reserveList),
                               TextMsg(
                 " 预约的{}周目{}王到了".format(cInfo.stage, cInfo.step))])
-        elif cInfo.step == 5 and cInfo.hp <= cInfo.fullHP / 2:  # 半血狂暴
+        elif cInfo.step == 5 and cInfo.hp <= cInfo.fullHP / 2 and cInfo.hp + damage > cInfo.fullHP / 2:  # 跨过半血狂暴线
             reserveList = self.pcr.reserveStepList(
                 msg.msgInfo.GroupId, cInfo.stage, 6)
+            if len(reserveList) == 0:
+                return
             self._reply(msg, [AtMsg(reserveList),
                               TextMsg(
                 " 预约的{}周目5王已狂暴".format(cInfo.stage))])
