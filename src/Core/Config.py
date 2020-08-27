@@ -1,7 +1,7 @@
 # 统一的配置管理类
 import collections
 from logging import Logger
-import os
+import os,sys
 import json
 import copy
 
@@ -10,7 +10,7 @@ class ConfigFactory():
     def __init__(self, logger: Logger) -> None:
         self.logger = logger
         self.filePath = os.path.join(
-            os.path.abspath(os.getcwd()), "config.json")
+            sys.path[0], "config.json")
         if os.path.exists(self.filePath):
             with open(self.filePath) as configFile:
                 tmpConfig: dict = json.loads(configFile.read())
@@ -48,7 +48,7 @@ class ConfigFactory():
 
     def commit(self, config):
         self.__config[config.packageName] = copy.deepcopy(config.data)
-        self.save
+        self.save()
 
 
 class Config(collections.UserDict):
