@@ -318,7 +318,7 @@ class PCRBOT(IPlugin):
                 self._reply(msg, self.delReserve(msg.msgInfo.GroupId,
                                                  msg.msgInfo.UserId, args[0], args[1]), atReply=True)
 
-            elif textMsg.content[0:4].lower() == "/pcr":
+            elif textMsg.content.lower() == "/pcr":
                 self._reply(msg, TextMsg(
                     "PCR 报刀插件：当前可用命令\n" +
                     "报刀[伤害值]：报刀\n" +
