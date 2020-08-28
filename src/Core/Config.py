@@ -1,7 +1,8 @@
 # 统一的配置管理类
 import collections
 from logging import Logger
-import os,sys
+import os
+import sys
 import json
 import copy
 
@@ -44,7 +45,8 @@ class ConfigFactory():
     def save(self):
         self.logger.info("Save config...")
         with open(self.filePath, 'w') as cfile:
-            cfile.write(json.dumps(self.__config, indent=4))
+            cfile.write(json.dumps(self.__config,
+                                   indent=4, ensure_ascii=False))
 
     def commit(self, config):
         self.__config[config.packageName] = copy.deepcopy(config.data)

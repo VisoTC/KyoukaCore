@@ -13,7 +13,7 @@ from .Logger import LogSerivce
 from .Interface.IBridge import IBridge
 from .MsgBus import MsgBus
 
-from Plugin import PCR
+from Plugin import PCR,setu,GuildWarQuery
 from Bridge import OPQBOT
 
 from typing import Dict
@@ -62,6 +62,8 @@ class KyoukaCore():
         '''
         self.loadPlugin(OPQBOT, "Bridge")
         self.loadPlugin(PCR, "Plugin")
+        self.loadPlugin(setu, "Plugin")
+        self.loadPlugin(GuildWarQuery, "Plugin")
 
         self.logger.info("Load success!")
 

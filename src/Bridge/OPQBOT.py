@@ -1,3 +1,4 @@
+import base64
 from Core.Interface.UserObj import Group, GroupMember, GroupMembers, Groups, User, Users
 import asyncio
 import time
@@ -8,7 +9,7 @@ import threading
 from Core.Interface.IBridge import IBridge
 from Core.Interface.Msg.MsgBase import MsgEvent
 from Core.Interface.Msg.MsgInfo import GroupMsgInfo, PrivateMsgInfo
-from Core.Interface.Msg.MsgContent import AtMsg, MsgContent, PicMsg, TextMsg
+from Core.Interface.Msg.MsgContent import AtMsg, MsgContent, PicMsg, PicMsgForword, TextMsg
 
 
 class OPQBOT(IBridge):
@@ -106,6 +107,26 @@ class OPQBOT(IBridge):
                                   }),
                                   "msgContent": Content,
                                   })
+            # TODO: 需要了解图片和文字是同一条消息的情况
+            elif payload['CurrentPacket']['Data']['MsgType'] == "PicMsg":
+                msgLink = []
+                picContent = json.loads(
+                    payload['CurrentPacket']['Data']['Content'])
+                for pic in picContent['GroupPic']:
+                    msgLink.append(PicMsg.webImg(
+                        pic['Url'], {}, PicMsgForword(self.qq, pic['FileMd5'])))
+                if 'Content' in picContent:
+                    msgLink.append(TextMsg(picContent['Content']))
+                tmp = MsgEvent(**{"bridge": payload['CurrentQQ'],
+                                  "time": int(time.time()),
+                                  "msgInfo": GroupMsgInfo(**{
+                                      "GroupId": payload['CurrentPacket']['Data']['FromGroupId'],
+                                      "GroupName": payload['CurrentPacket']['Data']['FromGroupName'],
+                                      "UserId": payload['CurrentPacket']['Data']['FromUserId'],
+                                      "UserName": payload['CurrentPacket']['Data']['FromNickName'],
+                                  }),
+                                  "msgContent": msgLink,
+                                  })
             else:
                 # self.logger.info(json.dumps(payload))
                 return
@@ -119,21 +140,21 @@ class OPQBOT(IBridge):
     # print(payload)
 
     def sendMsg(self, payload):
-        _payload = json.dumps(payload, ensure_ascii=False)
+        _payload = json.dumps(payload, ensure_ascii=False).encode()
         resp = requests.post(self._api, params={
             'qq': self.qq,
             'funcname': 'SendMsg',
             'timeout': 10
-        }, data=_payload.encode("UTF-8"))
+        }, data=_payload)
         try:
             resp = resp.json()
             if resp.get('Ret', -1) != 0:
                 self.logger.error(
                     "sendMsg error: OPQBot API ERROR -> Ret: {} MSG: {}".format(resp.get('Ret', "UNKNOW"), resp.get('Msg', "UNKNOW")))
             return resp
-        except ValueError:
-            self.__opqObj.logger.error(
-                "sendMsg error: OPQBot API ERROR -> " + resp.text())
+        except:
+            self.logger.error(
+                "sendMsg error: OPQBot API ERROR -> " + resp.text)
 
     def OnSendMsg(self, msg):
         starttime = time.time()
@@ -161,30 +182,25 @@ class OPQBOT(IBridge):
             if isinstance(m, TextMsg):
                 payload['content'] += m.content
             elif isinstance(m, PicMsg):
-                payload['content'] += "[PICFLAG]"
-                if not m.forword is None:
+                if m.forword.flag(self.qq):
                     payload = dict(payload, **{
-                        "fileMd5": m.forword
+                        "sendMsgType": "PicMsg",
+                        "fileMd5": m.forword.flag,
+                        "picUrl": "",
+                        "picBase64Buf": "",
                     })
                 else:
                     payload = dict(payload, **{
-                        "picBase64Buf": m.pic
+                        "sendMsgType": "PicMsg",
+                        "picUrl": "",
+                        "fileMd5": "",
+                        "picBase64Buf": base64.b64encode(m.pic.getvalue()).decode()
                     })
+                #payload['content'] += "[PICFLAG]"
             elif isinstance(m, AtMsg):
                 payload['content'] += "[ATUSER(%s)]" % ",".join(m.atUser)
             else:
                 self.logger.warn("消息链存在无法识别的消息内容：%s" % type(m))
-        if isinstance(msg.msgContent, TextMsg):
-            if len(msg.msgContent.atUser) > 0:
-                payload = dict(payload, **{
-                    "sendMsgType": "TextMsg",
-                    "content": "[ATUSER({})]\n{}".format(",".join(msg.msgContent.atUser), msg.msgContent.content),
-                })
-            else:
-                payload = dict(payload, **{
-                    "sendMsgType": "TextMsg",
-                    "content": msg.msgContent.content,
-                })
         self.sendMsg(payload)
         endtime = time.time()
         if endtime - starttime < 0.9:
@@ -230,7 +246,7 @@ class OPQBOT(IBridge):
             resp = requests.post(self._api, params={
                 'qq': self.qq,
                 'funcname': 'GetGroupList',
-                'timeout': 10
+                'timeout': 20
             }, data=_payload.encode("UTF-8"))
             result = resp.json()
             for g in result['TroopList']:

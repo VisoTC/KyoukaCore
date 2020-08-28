@@ -14,6 +14,7 @@ from Core.Logger import LogSerivce
 
 
 class Ready(threading.Event):
+    
     def wait(self, timeout=15):
         return super().wait(timeout=timeout)
 
@@ -44,6 +45,9 @@ class IPlugin(threading.Thread, metaclass=ABCMeta):
     def _IBridge__init(self): ...  # 仅在桥类可用
 
     def loadDone(self):
+        """
+        成功载入调用
+        """
         self.msgBusPort.name = "Plugin"
         self._IPlugin__loadReady.set()
 
