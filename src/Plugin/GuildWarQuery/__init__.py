@@ -81,12 +81,12 @@ class GuildWarQuery(IPlugin):
         resp = r.json()
         if resp['code'] != 0:
             return TextMsg("API 错误代码{}：{}".format(resp['code'], resp['msg']))
-        timeStr = time.strftime("%Y年%m月%d %H:%M:%S",
+        timeStr = time.strftime("%Y年%m月%d日 %H:%M:%S",
                                 time.localtime(resp['ts']))
         if len(resp['data']) == 0:
             return TextMsg("在时间点：{}找不到会长名为：{} 的公会".format(timeStr, leaderName))
         msgLink = []
-        TextTemplate = "工会：{name}（会长：{leader_name}）排名：{rank}"
+        TextTemplate = "公会：{name}（会长：{leader_name}）排名：{rank}"
         for row in resp['data']:
             msgLink.append(TextTemplate.format(
                 name=row['clan_name'], leader_name=row['leader_name'], rank=row['rank']))
