@@ -9,14 +9,14 @@ from .Config import ConfigFactory, Config
 from .Logger import LogSerivce
 
 
-
 from .Interface.IBridge import IBridge
 from .MsgBus import MsgBus
 
-from Plugin import PCR,setu,GuildWarQuery
+from Plugin import PCR, setu, GuildWarQuery
 from Bridge import OPQBOT
 
 from typing import Dict
+
 
 class KyoukaCore():
     bridgeThread: Dict[str, IBridge] = {}
@@ -60,6 +60,9 @@ class KyoukaCore():
                         configRoot=self.configRoot, logSerivce=self.logSerivce, KyoukaAPI=self.KyoukaAPI)
         plugin.start()
         '''
+        if not self.config.get('DisablePlugin', False):
+            self.config['DisablePlugin'] = []
+            self.config.commit()
         self.loadPlugin(OPQBOT, "Bridge")
         self.loadPlugin(PCR, "Plugin")
         self.loadPlugin(setu, "Plugin")
@@ -70,15 +73,19 @@ class KyoukaCore():
     def loadPlugin(self, cls, typ):
         self.logger.info("Loading Kyouka "+typ)
         c = cls.pluginInfo['entrance']
+        if cls.pluginInfo['packageName'] in self.config.get('DisablePlugin', []):
+            self.logger.info("插件 %s(%s) 被配置禁止加载" % (
+                cls.pluginInfo['name'], cls.pluginInfo['packageName']))
+            return
         self.logger.info(typ + "find: "+cls.pluginInfo['name'])
-        p:IPlugin = c(msgBusPort=self.msgBus.getPort(typ),
-              configRoot=self.configRoot, logSerivce=self.logSerivce, KyoukaAPI=self.KyoukaAPI)
+        p: IPlugin = c(msgBusPort=self.msgBus.getPort(typ),
+                       configRoot=self.configRoot, logSerivce=self.logSerivce, KyoukaAPI=self.KyoukaAPI)
         p.start()
         self.logger.info(typ + "loading: "+cls.pluginInfo['name'])
         if not p._IPlugin__loadReady.wait(15):
             self.logger.error("未在时限内完成初始化，退出")
             exit()
-        if typ == "Bridge": # 保存引用
+        if typ == "Bridge":  # 保存引用
             if p.msgBusPort.name in self.bridgeInfo.keys():
                 self.logger.error("发现重复载入了名称相同的 Bridge，退出")
                 exit()
