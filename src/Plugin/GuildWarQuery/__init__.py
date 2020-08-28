@@ -55,7 +55,7 @@ class GuildWarQuery(IPlugin):
             self._reply(msg, self.rank(history))
         elif testMsg.content == "/pcr history":
             self._reply(msg, self.history())
-        elif testMsg.content[0:4].lower() == "/pcr":
+        elif testMsg.content.lower() == "/pcr":
             self._reply(msg, TextMsg(
                 "公会战排名查询插件：\n" +
                 "/pcr Rank <[可选]历史存档时间戳>：查看公会战排名情况\n" +
