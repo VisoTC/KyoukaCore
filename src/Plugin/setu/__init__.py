@@ -6,7 +6,7 @@ import os
 from Core.Interface.IPlugin import IPlugin
 from Core.Interface.Msg.MsgBase import MsgEvent
 from Core.Interface.Msg.MsgContent import TextMsg, PicMsg
-from time import sleep,time
+from time import sleep, time
 import requests
 
 from Core.Interface.Msg.MsgInfo import GroupMsgInfo
@@ -28,12 +28,13 @@ class Setu(IPlugin):
             "entrance": Setu  # 入口类
         }
     last_time = 0
+
     @property
     def pluginInfo(self):
         return self.PluginInfo()
-    
+
     def hso(self, msg):
-        if random.randint(0, 9) < 2 or self.last_time * 60 * 2 >= time():
+        if random.randint(0, 9) < 4 or self.last_time * 30 >= time():
             with open(os.path.join(os.path.split(os.path.realpath(__file__))[0], 'テンパランス.png'), 'rb') as テンパランス:
                 pic = PicMsg(テンパランス)
             self._reply(msg, [pic, TextMsg("\n节制 (能力技) 为自身附加状态：节制  持续时间：20秒\n" +
