@@ -20,9 +20,12 @@ class Eventer(collections.UserString):
         :param name: 名称，Bridge 为登录号码，Plugin 为包名，若为 * 代表全部
         :param t: 类型；Bridge、Plugin、Core
         """
-        super().__init__("%s@%s" % (name, t))
         self._name = name
         self._type = t
+
+    @property
+    def data(self):
+        return "%s@%s" %(self._name,self._type)
 
     @property
     def name(self):
@@ -62,7 +65,8 @@ class SendEvent():
     发送的事件
     """
 
-    def __init__(self, terger: Receiver, payload: EventPayloadBase) -> None:
+    def __init__(self, source: Eventer, terger: Receiver, payload: EventPayloadBase) -> None:
+        self.source = source
         self.terger = terger
         self.payload = payload
 
