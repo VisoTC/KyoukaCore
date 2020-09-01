@@ -19,7 +19,7 @@ class BUS():
             EventerType.Core: []
         }
         BUSThread = threading.Thread(
-            target=self.threadMain, name="KyoukaCore event BUS loop thread")
+            target=self.threadMain, name="KyoukaCore event BUS loop thread",daemon=True)
         BUSThread.start()
 
     def threadMain(self):
@@ -28,9 +28,10 @@ class BUS():
             for terger in kyoukaMsg.terger:  # 判断事件接收者类型
                 for port in self._ports[terger.type]:  # 获得接收者端口
                     if terger.name != "*" or terger.name != port.eventer.name:  # 判断是否符合，不符合就跳过
+                        port._BUSPort__BUSsend(ReceiveEvent(
+                            kyoukaMsg.source, kyoukaMsg.payload))  # 重新组装成为接收者事件并发送事件
+                    else:
                         continue
-                    port._BUSPort__BUSsend(ReceiveEvent(
-                        kyoukaMsg.source, kyoukaMsg.payload))  # 重新组装成为接收者事件并发送事件
 
     def getBusPort(self, eventer: Eventer):
         busPort = BUSPort(self._sendBus, eventer)

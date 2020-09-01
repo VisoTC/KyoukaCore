@@ -25,7 +25,7 @@ class Eventer(collections.UserString):
 
     @property
     def data(self):
-        return "%s@%s" %(self._name,self._type)
+        return "%s@%s" % (self._name, self._type)
 
     @property
     def name(self):
@@ -36,7 +36,7 @@ class Eventer(collections.UserString):
         return self._type
 
 
-class Receiver(collections.UserList[Union[Eventer]]):
+class Receiver(collections.UserList): #类型标注 [Eventer]
 
     def __init__(self, receiver: Union[Eventer, List[Eventer]]) -> None:
         """
