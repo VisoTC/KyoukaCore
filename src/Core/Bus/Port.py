@@ -5,7 +5,7 @@ import logging
 import copy
 
 
-class BUSPort():
+class BusPort():
     def __init__(self, sendBus: Queue, eventer: Eventer) -> None:
         self.logger = logging.getLogger("KyoukaBUSPort: %s" % eventer)
         self._sendPort = sendBus

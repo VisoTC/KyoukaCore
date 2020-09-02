@@ -1,5 +1,5 @@
 from queue import Queue
-from .Port import BUSPort
+from .Port import BusPort
 from typing import Dict, List
 from ..Event import Eventer, EventerType, ReceiveEvent, SendEvent
 import threading
@@ -7,7 +7,7 @@ import threading
 from fnmatch import fnmatch
 
 
-class BUS():
+class Bus():
     """
     消息总线
     """
@@ -15,7 +15,7 @@ class BUS():
     def __init__(self) -> None:
         self._sendBus: Queue[SendEvent] = Queue()  # 发送总线
 
-        self._ports: Dict[EventerType, List[BUSPort]] = {
+        self._ports: Dict[EventerType, List[BusPort]] = {
             EventerType.Plugin: [],
             EventerType.Bridge: [],
             EventerType.Core: []
@@ -36,6 +36,6 @@ class BUS():
                         continue
 
     def getBusPort(self, eventer: Eventer):
-        busPort = BUSPort(self._sendBus, eventer)
+        busPort = BusPort(self._sendBus, eventer)
         self._ports[busPort.eventer.type].append(busPort)
         return busPort

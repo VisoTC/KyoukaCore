@@ -1,6 +1,6 @@
 import unittest
 from _queue import Empty
-from Core.bus import BUS
+from Core.Bus import Bus
 from Core.Event import Eventer, EventerType, Receiver
 from Core.Event.TestMsg import TestEvent
 
@@ -8,7 +8,7 @@ from Core.Event.TestMsg import TestEvent
 class TestBUS(unittest.TestCase):
 
     def setUp(self):
-        self.bus = BUS()
+        self.bus = Bus()
         self.a = self.bus.getBusPort(Eventer("a", EventerType.Bridge))
         self.b = self.bus.getBusPort(Eventer("b", EventerType.Plugin))
         self.c = self.bus.getBusPort(Eventer("c", EventerType.Plugin))
