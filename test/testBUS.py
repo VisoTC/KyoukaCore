@@ -1,26 +1,65 @@
 import unittest
 from _queue import Empty
 from Core.bus import BUS
-from Core.Event import Eventer,EventerType,Receiver
+from Core.Event import Eventer, EventerType, Receiver
 from Core.Event.TestMsg import TestEvent
+
+
 class TestBUS(unittest.TestCase):
 
     def setUp(self):
         self.bus = BUS()
-        self.a = self.bus.getBusPort(Eventer("a",EventerType.Bridge))
-        self.b = self.bus.getBusPort(Eventer("b",EventerType.Plugin))
+        self.a = self.bus.getBusPort(Eventer("a", EventerType.Bridge))
+        self.b = self.bus.getBusPort(Eventer("b", EventerType.Plugin))
+        self.c = self.bus.getBusPort(Eventer("c", EventerType.Plugin))
+        self.bc = self.bus.getBusPort(Eventer("bc", EventerType.Plugin))
 
     def test_正常创建(self):
-
         testEvent = TestEvent()
-        self.a.send(Receiver(Eventer("b",EventerType.Plugin)),testEvent)
-        msg = self.b.receive(timeout=1)
-        self.assertEqual(msg.source, Eventer("a",EventerType.Bridge))
+        self.a.send(Receiver(Eventer("b", EventerType.Plugin)), testEvent)
+        msg = self.b.receive(timeout=0.1)
+        self.assertEqual(msg.source, Eventer("a", EventerType.Bridge))
         self.assertEqual(msg.payload, testEvent)
 
-    def test_错误的接收地址(self):
-
+    def test_通配符测试(self):
         testEvent = TestEvent()
-        self.a.send(Receiver(Eventer("c",EventerType.Plugin)),testEvent)
-        with self.assertRaises(Empty):
-            self.b.receive(timeout=1)
+        self.a.send(Receiver(Eventer("*", EventerType.Plugin)), testEvent)
+        msg = self.b.receive(timeout=0.1)
+        self.assertEqual(msg.source, Eventer("a", EventerType.Bridge))
+        self.assertEqual(msg.payload, testEvent)
+        msg = self.c.receive(timeout=0.1)
+        self.assertEqual(msg.source, Eventer("a", EventerType.Bridge))
+        self.assertEqual(msg.payload, testEvent)
+        with self.assertRaises(Empty):  # c 不应该收到消息
+            self.c.receive(timeout=0.1)
+        with self.assertRaises(Empty):  # a 不应该收到消息
+            self.a.receive(timeout=0.1)
+
+
+    def test_通配符测试2(self):
+        testEvent = TestEvent()
+        self.a.send(Receiver(Eventer("b*", EventerType.Plugin)), testEvent)
+        msg = self.b.receive(timeout=0.1)
+        self.assertEqual(msg.source, Eventer("a", EventerType.Bridge))
+        self.assertEqual(msg.payload, testEvent)
+        msg = self.bc.receive(timeout=0.1)
+        self.assertEqual(msg.source, Eventer("a", EventerType.Bridge))
+        self.assertEqual(msg.payload, testEvent)
+        with self.assertRaises(Empty):  # c 不应该收到消息
+            self.c.receive(timeout=0.1)
+        with self.assertRaises(Empty):  # a 不应该收到消息
+            self.a.receive(timeout=0.1)
+
+
+    def test_未匹配到的接收(self):
+        testEvent = TestEvent()
+        self.a.send(Receiver(Eventer("c", EventerType.Plugin)), testEvent)
+        with self.assertRaises(Empty):  # b 不应该收到消息
+            self.b.receive(timeout=0.1)
+        msg = self.c.receive(timeout=0.1)  # c 应该收到消息
+        self.assertEqual(msg.source, Eventer("a", EventerType.Bridge))
+        self.assertEqual(msg.payload, testEvent)
+
+    def test_错误的payload(self):
+        with self.assertRaises(ValueError):
+            self.a.send(Receiver(Eventer("b", EventerType.Plugin)), object())
