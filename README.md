@@ -5,5 +5,7 @@
 >
 > 当前唯一指定插件为：PCR 报刀插件（开发中）
 
+[![Build Status](https://szlytlyt.visualstudio.com/KyoukaCore/_apis/build/status/VisoTC.KyoukaCore?branchName=Next)](https://szlytlyt.visualstudio.com/KyoukaCore/_build/latest?definitionId=1&branchName=Next)
+
 当前处于开发状态，随时会有更变
 ## 重构进行中
