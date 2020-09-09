@@ -24,14 +24,15 @@ class TestBUS(unittest.TestCase):
     def test_通配符测试(self):
         testEvent = TestEvent()
         self.a.send(Receiver(Eventer("*", EventerType.Plugin)), testEvent)
+
         msg = self.b.receive(timeout=0.1)
         self.assertEqual(msg.source, Eventer("a", EventerType.Bridge))
         self.assertEqual(msg.payload, testEvent)
+
         msg = self.c.receive(timeout=0.1)
         self.assertEqual(msg.source, Eventer("a", EventerType.Bridge))
         self.assertEqual(msg.payload, testEvent)
-        with self.assertRaises(Empty):  # c 不应该收到消息
-            self.c.receive(timeout=0.1)
+
         with self.assertRaises(Empty):  # a 不应该收到消息
             self.a.receive(timeout=0.1)
 
