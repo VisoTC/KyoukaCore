@@ -64,7 +64,7 @@ class PicMsgForword():
 
 class PicMsg(MsgContent):
     """图片消息"""
-    _picBuff: Union[BytesIO, dict[str, Union[str]]]
+    _picBuff: Union[BytesIO, Dict[str, Union[str]]]
 
     def __init__(self, picBuff: BufferedIOBase, forword: Union[PicMsgForword, bool] = False) -> None:
         """

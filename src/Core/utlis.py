@@ -7,7 +7,7 @@ class ReadOnly():
     """
     __readOnlyLock = False
 
-    def readOnlyLock(self):
+    def _readOnlyLock(self):
         self.__readOnlyLock = True
 
     def __setattr__(self, name: str, value: Any) -> None:
