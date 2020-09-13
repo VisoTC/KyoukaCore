@@ -1,8 +1,9 @@
 from queue import Queue
 from .Port import BusPort
 from typing import Dict, List
-from ..Event import Eventer, EventerType, ReceiveEvent, SendEvent
+from ..Event import Eventer, ServiceType, ReceiveEvent, SendEvent
 import threading
+import ctypes
 
 from fnmatch import fnmatch
 
@@ -15,14 +16,17 @@ class Bus():
     def __init__(self) -> None:
         self._sendBus: Queue[SendEvent] = Queue()  # 发送总线
 
-        self._ports: Dict[EventerType, List[BusPort]] = {
-            EventerType.Plugin: [],
-            EventerType.Bridge: [],
-            EventerType.Core: []
+        self._ports: Dict[ServiceType, List[BusPort]] = {
+            ServiceType.Plugin: [],
+            ServiceType.Bridge: [],
+            ServiceType.Core: []
         }
-        BUSThread = threading.Thread(
+        self.__BUSThread = threading.Thread(
             target=self.threadMain, name="KyoukaCore event BUS loop thread", daemon=True)
-        BUSThread.start()
+        self.__BUSThread.start()
+
+    def wait(self):
+        self.__BUSThread.join()
 
     def threadMain(self):
         while True:
@@ -39,3 +43,26 @@ class Bus():
         busPort = BusPort(self._sendBus, eventer)
         self._ports[busPort.eventer.type].append(busPort)
         return busPort
+
+    def close(self):
+        if not self.__BUSThread.ident is None:
+            tid = self.__BUSThread.ident
+        else:
+            raise ValueError("invalid thread id")
+        
+        res = ctypes.pythonapi.PyThreadState_SetAsyncExc(
+            ctypes.c_long(tid), ctypes.py_object(SystemExit))
+        
+        if res == 0:
+            raise ValueError("invalid thread id")
+        elif res != 1:
+            # """if it returns a number greater than one, you're in trouble,
+            # and you should call it again with exc=NULL to revert the effect"""
+            ctypes.pythonapi.PyThreadState_SetAsyncExc(
+                self.__BUSThread.ident, None)
+            raise SystemError("PyThreadState_SetAsyncExc failed")
+        else:
+            pass
+
+    def __del__(self):
+        self.close()
