@@ -5,6 +5,6 @@ __pycache__
 /*.json
 *.db
 /tmp*.*
-OPQBot
+/OPQBot
 msg_demo.json
 src/tmp.py
