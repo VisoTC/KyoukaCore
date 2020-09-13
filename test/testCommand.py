@@ -1,5 +1,5 @@
 import unittest
-from Core.Event import ReceiveEvent, Eventer, EventerType, EventPayloadBase
+from Core.Event import ReceiveEvent, Eventer, ServiceType, EventPayloadBase
 from Core.Service.Command import Command, FuncAttr
 from Core.Service.exception import *
 
@@ -14,7 +14,7 @@ class testCommand(unittest.TestCase):
         self.root = Command(command="root", doc="DOC ROOT",
                             sub=[self.subComA, self.subComB])
         self.receiveEvent = ReceiveEvent(
-            Eventer("test", EventerType.Core), EventPayloadBase())
+            Eventer("test", ServiceType.Core), EventPayloadBase())
 
     def funcA(self,event):
         self.callreturn = "A"
