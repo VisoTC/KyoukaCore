@@ -8,4 +8,49 @@
 [![Build Status](https://szlytlyt.visualstudio.com/KyoukaCore/_apis/build/status/VisoTC.KyoukaCore?branchName=Next)](https://szlytlyt.visualstudio.com/KyoukaCore/_build/latest?definitionId=1&branchName=Next)
 
 当前处于开发状态，随时会有更变
-## 重构进行中
+# 开发方法
+## 开发 Bridge（与机器人通讯）
+```python
+# 导入包
+from Core.Service.Bridge import BridgeService, ServiceInfo
+# 消息类别
+from Core.Event.MsgEvent.MsgInfo import PrivateMsgInfo, GroupPrivateMsgInfo, GroupMsgInfo
+# 接收的消息对象 
+from Core.Event import ReceiveEvent
+# 创建机器人对象
+service = BridgeService(ServiceInfo(**{
+    'packageName': "com.visotc.KyoukaCore.ExampleBridge",
+    'name': "机器人桥",
+    'version': "dev",
+    'author': "VisoTC"
+}))
+service.register(PrivateMsgInfo,OnSendMsg)
+
+@service.register(PrivateMsgInfo)
+def OnSendMsg(event: ReceiveEvent)：
+    # 发送消息
+# 示例请查看 OPQBot
+```
+## 开发 Plugin（实现各种功能的）
+```python
+# 导入包
+from Core.Service.Plugin import PluginService, ServiceInfo
+# 消息类别
+from Core.Event.MsgEvent.MsgInfo import PrivateMsgInfo, GroupPrivateMsgInfo, GroupMsgInfo
+# 接收的消息对象 
+from Core.Event import ReceiveEvent
+# 创建机器人对象
+service = BridgeService(ServiceInfo(**{
+    'packageName': "com.visotc.KyoukaCore.ExamplePlugin",
+    'name': "插件",
+    'version': "dev",
+    'author': "VisoTC"
+}))
+service.register(PrivateMsgInfo,OnSendMsg)
+
+@service.register(PrivateMsgInfo)
+def OnPrivateMsgInfo(event: ReceiveEvent)：
+    # 收到消息处理
+
+# 示例请查看 ExamplePlugin
+```
