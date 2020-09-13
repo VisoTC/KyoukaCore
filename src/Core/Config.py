@@ -28,27 +28,11 @@ class ConfigFactory():
             if os.path.exists(self.filePath):
                 with open(self.filePath) as configFile:
                     tmpConfig: dict = json.loads(configFile.read())
-                    if not "KyoukaBot" in tmpConfig.keys():
-                        tmpConfig = self.initConfig()
-                    if tmpConfig["KyoukaBot"]['configVersion'] != "1":
-                        # 可在此进行配置版本升级操作，若版本无法处理直接初始化
-                        tmpConfig = self.initConfig()
-                        self.save()
                     self.__config = tmpConfig
             else:
-                self.__config = self.initConfig()
-                self.save()
+                self.__config = {}
             self.__isInit = True
 
-    def initConfig(self):
-        self.logger.info("Init config...")
-        return {
-            "KyoukaBot": {
-                "configVersion": "1",
-                "LogLevel": "info",
-                "adminUser": ""
-            }
-        }
 
     def getConfig(self, packageName):
         if not packageName in self.__config.keys():
