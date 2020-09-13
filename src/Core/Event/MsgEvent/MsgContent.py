@@ -1,5 +1,5 @@
 from io import BufferedIOBase, BytesIO, UnsupportedOperation
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Literal, Union
 from typing import Union
 import requests
 import imghdr
@@ -17,7 +17,6 @@ class TextMsg(MsgContent):
         """
         文本消息
         @param content: 消息内容
-        @param atUser: 被@的用户的id
         """
         self._content = content
 
@@ -48,9 +47,9 @@ class PicMsgForword():
     为了防止跨bridge转发
     """
 
-    def __init__(self, bridge: Union[object, bool], flag: Union[object, bool]) -> None:
+    def __init__(self, bridge: Union[object, Literal[False]], flag: Union[Any]) -> None:
         self._bridge = bridge
-        self._flag = flag
+        self._flag:Union[PicMsgForword,Literal[False]] = flag
 
     def flag(self, bridge: str):
         """
@@ -72,7 +71,7 @@ class PicMsg(MsgContent):
         :parmam forword: 转发标记，若无就无
         """
         self._picBuff = self.__loadImg(picBuff)
-        self._forword = forword if forword != False else PicMsgForword(
+        self._forword:PicMsgForword = forword if not isinstance(forword,bool) else PicMsgForword(
             False, False)
 
     def __loadImg(self, picBuff: BufferedIOBase):
@@ -102,7 +101,7 @@ class PicMsg(MsgContent):
             self._picBuff.close()  # 释放流
 
     @classmethod
-    def webImg(cls, url: str, params: Dict[str, str] = dict(), forword: Union[PicMsgForword, bool] = False):
+    def webImg(cls, url: str, params: Dict[str, str] = dict(), forword: Union[PicMsgForword, Literal[False]] = False):
         """
         从 Web 载入图片，在调用 pic 属性的时候才会触发获取操作
         """

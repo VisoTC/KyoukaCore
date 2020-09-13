@@ -1,6 +1,6 @@
 import collections
 from typing import List, Union
-from enum import Enum
+from enum import Enum, unique
 
 
 class EventPayloadBase():
@@ -9,12 +9,15 @@ class EventPayloadBase():
     """
 
 
-EventerType = Enum("EventerType", "Bridge Plugin Core")
+class ServiceType(Enum):
+    Bridge = "Bridge"
+    Plugin = "Plugin"
+    Core = "Core"
 
 
 class Eventer(collections.UserString):
 
-    def __init__(self, name: str, t: EventerType) -> None:
+    def __init__(self, name: str, t: ServiceType) -> None:
         """
         创建事件对象
         :param name: 名称，Bridge 为登录号码，Plugin 为包名，若为 * 代表全部
@@ -25,7 +28,7 @@ class Eventer(collections.UserString):
 
     @property
     def data(self):
-        return "%s@%s" % (self._name, self._type)
+        return "%s@%s" % (self._name, self._type.value)
 
     @property
     def name(self):
@@ -36,7 +39,7 @@ class Eventer(collections.UserString):
         return self._type
 
 
-class Receiver(collections.UserList): #类型标注 [Eventer]
+class Receiver(collections.UserList):  # 类型标注 [Eventer]
 
     def __init__(self, receiver: Union[Eventer, List[Eventer]]) -> None:
         """
@@ -65,7 +68,9 @@ class SendEvent():
     发送的事件
     """
 
-    def __init__(self, source: Eventer, terger: Receiver, payload: EventPayloadBase) -> None:
+    def __init__(self, source: Eventer, terger: Union[Receiver, Eventer], payload: EventPayloadBase) -> None:
+        if isinstance(terger, Eventer):
+            terger = Receiver(terger)
         self.source = source
         self.terger = terger
         self.payload = payload
