@@ -1,9 +1,6 @@
-import collections
 import inspect
-from pydoc import Helper
-from tkinter.constants import N
-from turtle import goto
-from typing import List, Literal, Type, Union, overload, Callable
+
+from typing import *
 
 from ..Event import ReceiveEvent
 
