@@ -18,7 +18,7 @@ class BridgeAPI(ServiceAPI):
 
     @property
     def GroupsList(self): return self._service.data['GroupsList']
-    
+
     def updateFriendsList(self, users: Users):
         """
         更新好友列表
@@ -36,17 +36,19 @@ class BridgeService(Service):
 
     def __init__(self, serviceInfo: ServiceInfo):
         super().__init__(serviceInfo)
-        self.__api:BridgeAPI = BridgeAPI(self)
+        self.__api: BridgeAPI = BridgeAPI(self)
         self.data: Dict[str, Any] = {
             'im': "UNKNOW"
         }
+
     @property
     def api(self):
         return self.__api
+
     @property
     def type(self): return ServiceType.Bridge
 
-    def initDone(self, uid: str, status: bool, exit: Optional[bool] = None, msg: Optional[str] = None):
+    def initDone(self, uid: str, status: bool = True, exit: Optional[bool] = None, msg: Optional[str] = None):
         """初始化完成\n调用后会立即触发 register 事件
         :param uid: 操作者使用的 uid
         :param status: 加载是否成功
