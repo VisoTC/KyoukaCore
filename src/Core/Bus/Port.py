@@ -12,7 +12,7 @@ class BusPort():
         self._receivePort: Queue[ReceiveEvent] = Queue()
         self.eventer = eventer
 
-    def send(self, terger: Receiver, payload: EventPayloadBase):
+    def send(self, terger: Union[Receiver,Eventer], payload: EventPayloadBase):
         """
         向消息总线发送消息
         """
