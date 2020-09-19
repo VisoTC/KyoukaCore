@@ -34,7 +34,7 @@ class Setu(IPlugin):
         return self.PluginInfo()
 
     def hso(self, msg):
-        if random.randint(0, 9) < 4 or self.last_time * 30 >= time():
+        if random.randint(0, 9) < 4 or self.last_time + 30 >= time():
             with open(os.path.join(os.path.split(os.path.realpath(__file__))[0], 'テンパランス.png'), 'rb') as テンパランス:
                 pic = PicMsg(テンパランス)
             self._reply(msg, [pic, TextMsg("\n节制 (能力技) 为自身附加状态：节制  持续时间：20秒\n" +
