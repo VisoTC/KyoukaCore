@@ -1,7 +1,8 @@
 import collections
-from typing import List, Union
+from typing import List, Union,Generic,TypeVar
 from enum import Enum, unique
 
+EventPayloadBase_T = TypeVar('EventPayloadBase_T')
 
 class EventPayloadBase():
     """
@@ -76,11 +77,11 @@ class SendEvent():
         self.payload = payload
 
 
-class ReceiveEvent():
+class ReceiveEvent(Generic[EventPayloadBase_T]):
     """
     收到的事件
     """
 
-    def __init__(self, source: Eventer, payload: EventPayloadBase) -> None:
+    def __init__(self, source: Eventer, payload: EventPayloadBase_T) -> None:
         self.source = source
         self.payload = payload
