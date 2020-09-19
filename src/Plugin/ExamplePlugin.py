@@ -1,8 +1,9 @@
 from Core.Service.Plugin import PluginService, ServiceInfo
-from Core.Event.MsgEvent.MsgInfo import PrivateMsgInfo
+from Core.Event.MsgEvent.MsgInfo import GroupMsgInfo, PrivateMsgInfo
 from Core.Event.MsgEvent.MsgContent import TextMsg
 from Core.Event.MsgEvent import MsgEvent
 from Core.Event import ReceiveEvent
+from Core.Service.Command import Command
 
 example = PluginService(ServiceInfo(**{
     'packageName': "com.visotc.KyoukaCore.ExamplePlugin",
@@ -19,12 +20,22 @@ def register(data):
 
 
 @example.register(PrivateMsgInfo)
-def onPrivateMsgInfo(event: ReceiveEvent):
+def onPrivateMsgInfo(event: ReceiveEvent[MsgEvent]):
     payload = event.payload
-    if isinstance(payload ,MsgEvent):
-        f = payload.msgContent[0]
-        if isinstance(f, TextMsg):
-            if f.content == "test":
-                example.api.reply(event,TextMsg("i'm Here"))
+    f = payload.msgContent[0]
+    if isinstance(f, TextMsg):
+        if f.content == "test":
+            example.api.reply(event, TextMsg("i'm Here"))
 
+
+def cTest(event: ReceiveEvent[MsgEvent], echotext):
+    example.api.reply(event, TextMsg("echo: " + echotext))
+
+
+a = Command("echo", doc="复读机", msgtypes=None, func=cTest)
+command = Command("test", '示例命令', msgtypes=PrivateMsgInfo, sub=[
+                  a, 
+                  Command("G", "这个命令只能从群聊中看到", msgtypes=GroupMsgInfo, sub=a), 
+                  Command("P", "这个命令只能从私聊中看到", msgtypes=PrivateMsgInfo, sub=a)])
+example.registerCommand(command)
 example.initDone()

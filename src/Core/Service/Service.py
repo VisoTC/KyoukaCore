@@ -24,6 +24,7 @@ from ..Bus.Port import BusPort
 from .exception import ServiceNotReadyException, ServiceRegisterFailerException, MatchAndCallException, ArgsDifferentLengthCommandException, MatchFailedCommandException
 from .exception import MustOneArgsCommandException, CommandISRegisterException
 
+from .msgInfoTypeEnum import MsgInfoTypeEnum
 
 class ServiceInfo(ReadOnly):
     """
@@ -37,26 +38,6 @@ class ServiceInfo(ReadOnly):
         self.author = author
         self._readOnlyLock()
 
-
-class MsgInfoTypeEnum(Enum):
-    GroupMsg = 'GroupMsg'
-    GroupPrivateMsg = 'GroupPrivateMsg'
-    PrivateMsg = 'PrivateEvent'
-
-    GroupEvent = 'GroupEvent'
-    GroupPrivateEvent = 'GroupPrivateEvent'
-    PrivateEvent = 'PrivateEvent'
-
-    @classmethod
-    def msgInfo2Enum(cls, msgInfo: Type[MsgInfo]):
-        if msgInfo == GroupMsgInfo:
-            return cls.GroupMsg
-        elif msgInfo == GroupPrivateMsgInfo:
-            return cls.GroupPrivateMsg
-        elif msgInfo == PrivateMsgInfo:
-            return cls.PrivateMsg
-        else:
-            raise ValueError
 
 
 class ServiceReady():
@@ -132,7 +113,6 @@ class Service(metaclass=ABCMeta):
         self._busPort: Union[BusPort, None] = None
         self._registerCalls: Dict[Union[MsgInfoTypeEnum,
                                         str], List[Callable]] = {}
-        self._command: Union[Command, None] = None
 
         self.eventername = self._serviceInfo.packageName
 
@@ -149,6 +129,21 @@ class Service(metaclass=ABCMeta):
         """
         return self._serviceInfo
 
+    def _receiveMsgEvent(self, event: ReceiveEvent[MsgEvent]):
+        if MsgInfoTypeEnum.msgInfo2Enum(type(event.payload.msgInfo)).value in self._registerCalls.keys():
+            for call in self._registerCalls.get(MsgInfoTypeEnum.msgInfo2Enum(type(event.payload.msgInfo)).value, []):
+                try:
+                    call(event)
+                except Exception as e:
+                    self.logger.exception(e)
+
+    def _receiveKyoukaEvent(self, event: ReceiveEvent[KyoukaCoreEventBase]):
+        if isinstance(event.payload, Register):
+            for call in self._registerCalls.get("register", []):
+                self._mainThread = threading.Thread(
+                    target=call, args=[event], name=self.info.packageName)
+                self._mainThread.start()
+
     def _receiveEventThread(self):
         """
         接收消息线程
@@ -156,40 +151,14 @@ class Service(metaclass=ABCMeta):
         self.logger.info("初始化完成，开始运行消息循环")
         while not self._busPort is None:
             event = self._busPort.receive()
-            # 如果是消息事件
+            # 消息事件
             if isinstance(event.payload, MsgEvent):
-                # 如果最开头是纯文本消息，判断是不是/开头的，/开头视作命令
-                if not self._command is None:
-                    if not event.payload.getFirstMsgContent() is None:
-                        content = event.payload.getFirstMsgContent()
-                        if isinstance(content, TextMsg):
-                            if content.content[0] == "/":
-                                try:
-                                    self._command.matchAndCall(
-                                        content.content[1:], event)
-                                except MatchAndCallException as e:
-                                    if e.type == ArgsDifferentLengthCommandException:
-                                        for call in self._registerCalls.get("ArgsError@command"):
-                                            call(e)
-                                    elif e.type == MatchFailedCommandException:
-                                        for call in self._registerCalls.get("NotFound@command"):
-                                            call(e)
-
-                                continue
-                # 将非命令消息发送给绑定的消息
-                if MsgInfoTypeEnum.msgInfo2Enum(type(event.payload.msgInfo)).value in self._registerCalls.keys():
-                    for call in self._registerCalls.get(MsgInfoTypeEnum.msgInfo2Enum(type(event.payload.msgInfo)).value, []):
-                        try:
-                            call(event)
-                        except Exception as e:
-                            self.logger.exception(e)
+                self._receiveMsgEvent(event)
+                continue
             # KyoukaCore 事件
             elif isinstance(event.payload, KyoukaCoreEventBase):
-                if isinstance(event.payload, Register):
-                    for call in self._registerCalls.get("register", []):
-                        self._mainThread = threading.Thread(
-                            target=call, args=[event], name=self.info.packageName)
-                        self._mainThread.start()
+                self._receiveKyoukaEvent(event)
+
         self.logger.error("消息循环异常退出，此插件已退出")
         self.__ready.reset()
 
@@ -252,13 +221,3 @@ class Service(metaclass=ABCMeta):
             self._registerCalls[cName] = []
         self._registerCalls[cName].append(func)
 
-    def registerCommand(self, command: Command):
-        """
-        注册一个命令对象
-        :param command: 命令对象
-        :raise CommandISRegisterException: 命令对象已经存在
-        """
-        if self._command is None:
-            self._command = command
-        else:
-            raise CommandISRegisterException

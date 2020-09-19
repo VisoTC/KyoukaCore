@@ -2,13 +2,16 @@ import inspect
 
 from typing import *
 
+from ..Event.MsgEvent import MsgEvent
+
 from ..Event import ReceiveEvent
 
-
+from ..Event.MsgEvent.MsgInfo import MsgInfo, GroupMsgInfo, GroupPrivateMsgInfo, PrivateMsgInfo
 from ..utlis import ReadOnly
 from .exception import SimultaneouslyDefineCommandException, FuncNotCallableCommandException, ArgsDifferentLengthCommandException
 from .exception import SameCommandException, UnSupportArgsTypeException, MatchFailedCommandException
 from .exception import MatchAndCallException, LeastOneArgsCommandException, ReceiveEventTypeErrorCommandException
+from .msgInfoTypeEnum import MsgInfoTypeEnum
 
 
 class FuncAttr(ReadOnly):
@@ -33,7 +36,7 @@ class FuncAttr(ReadOnly):
         try:
             next(parm)
         except StopIteration:
-            pass
+            raise LeastOneArgsCommandException
         for param in parm:
             if param.kind == param.KEYWORD_ONLY:  # 必须传入命名参数就不支持
                 raise UnSupportArgsTypeException
@@ -70,8 +73,8 @@ class FuncAttr(ReadOnly):
 
     @property
     def argsText(self):
-        r = " ".join(self._required)
-        o = " ".join(self._optional)
+        r = " ".join(self.argsHelper(self._required))
+        o = " ".join(self.argsHelper(self._optional, isopt=True))
         if self._optionalUnlimited:
             if len(o) == 0:
                 o += "..."
@@ -82,22 +85,45 @@ class FuncAttr(ReadOnly):
         else:
             return " ".join([r, o])
 
+    @staticmethod
+    def argsHelper(arg, isopt=False):
+        for a in arg:
+            if isopt:
+                yield "[{}]".format(a)
+            else:
+                yield "<{}>".format(a)
+
 
 class Command():
     """
     命令类
     """
 
-    def __init__(self, command: str, doc: str, sub: Union[List, object, None] = None, func: Union[Callable, None] = None) -> None:
+    def __init__(self, command: str, doc: str, msgtypes: Optional[Union[List[Union[str, Type[MsgInfo]]], str, Type[MsgInfo]]], sub: Union[List, object, None] = None, func: Union[Callable, None] = None) -> None:
         """
         创建一条命令
-        :param command: 匹配的命令
+        :param command: 匹配的命令（不需要斜杠）
         :param doc: 帮助文档
+        :param msgtypes: 可以访问这个命令的消息类型([]/None 代表全部)
         :param sub: 二选一，子命令，传入Command 类
-        :param func: 二选一，执行的方法，可选必选参数用方法规定
+        :param func: 二选一，执行的方法，可选必选参数用方法规定,注意：被调用的第一个参数必须存在，用于接收事件，调用的时候不会调用命名参数
         """
         self._command = command
         self._doc = doc
+        if msgtypes is None:
+            msgtypes = [GroupMsgInfo, GroupPrivateMsgInfo, PrivateMsgInfo]
+        if not isinstance(msgtypes, list):
+            msgtypes = [msgtypes]
+        else:
+            if len(msgtypes) == 0:
+                msgtypes = [GroupMsgInfo, GroupPrivateMsgInfo, PrivateMsgInfo]
+        self._msgtypes = []
+        for t in msgtypes:
+            if isinstance(t, Type):
+                self._msgtypes.append(MsgInfoTypeEnum.msgInfo2Enum(t).value)
+            else:
+                self._msgtypes.append(t)
+
         if not (sub is None) ^ (func is None):
             raise SimultaneouslyDefineCommandException
         if not func is None:
@@ -117,6 +143,10 @@ class Command():
             else:
                 self._sub: Union[None, List[Command]] = None
             self._func = None
+
+    @property
+    def msgtypes(self):
+        return self._msgtypes
 
     @property
     def command(self):
@@ -188,7 +218,7 @@ class Command():
                 return True
         return False
 
-    def matchAndCall(self, commands: Union[List[str], str], receiveEvent: ReceiveEvent) -> Literal[True]:
+    def matchAndCall(self, commands: Union[List[str], str], receiveEvent: ReceiveEvent[MsgEvent]) -> Literal[True]:
         """
         自动匹配命令并执行
         :param commands: 分隔后的命令
@@ -201,6 +231,9 @@ class Command():
         if self.match(commands):
             if not self.subs is None:  # 有子命令
                 for sub in self.subs:
+                    # 跳过不匹配当前
+                    if not MsgInfoTypeEnum.msgInfo2Enum(type(receiveEvent.payload.msgInfo)).value in sub.msgtypes:
+                        continue
                     try:
                         return sub.matchAndCall(commands[1:], receiveEvent)
                     except MatchAndCallException as e:  # 包装的错误添加当前路径
