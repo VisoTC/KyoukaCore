@@ -1,5 +1,8 @@
 import unittest
 from Core.Event import ReceiveEvent, Eventer, ServiceType, EventPayloadBase
+from Core.Event.MsgEvent import MsgEvent
+from Core.Event.MsgEvent.MsgContent import MsgContent, TextMsg
+from Core.Event.MsgEvent.MsgInfo import GroupMsgInfo, PrivateMsgInfo
 from Core.Service.Command import Command, FuncAttr
 from Core.Service.exception import *
 
@@ -8,13 +11,14 @@ class testCommand(unittest.TestCase):
 
     def setUp(self):
         self.callreturn = ""
-        self.subComA = Command(command="a", doc="DOC A", func=self.funcA)
-        self.subComBA = Command(command="ba", doc="DOC ba", func=self.funcB)
-        self.subComB = Command(command="b", doc="DOC B", sub=self.subComBA)
-        self.root = Command(command="root", doc="DOC ROOT",
-                            sub=[self.subComA, self.subComB])
+        self.subComA = Command(command="a", doc="DOC A",msgtypes=GroupMsgInfo, func=self.funcA)
+        self.subComBA = Command(command="ba", doc="DOC ba",msgtypes=GroupMsgInfo, func=self.funcB)
+        self.subComB = Command(command="b", doc="DOC B",msgtypes=GroupMsgInfo, sub=self.subComBA)
+        self.subComC = Command(command="c", doc="DOC C",msgtypes=PrivateMsgInfo, sub=self.subComBA)
+        self.root = Command(command="root", doc="DOC ROOT",msgtypes=None,
+                            sub=[self.subComA, self.subComB,self.subComC])
         self.receiveEvent = ReceiveEvent(
-            Eventer("test", ServiceType.Core), EventPayloadBase())
+            Eventer("test", ServiceType.Core), MsgEvent(msgInfo=GroupMsgInfo(1),msgContent=TextMsg("test")))
 
     def funcA(self,event):
         self.callreturn = "A"
@@ -86,3 +90,9 @@ class testCommand(unittest.TestCase):
         except MatchAndCallException as e:
             self.assertEqual(e.type, ArgsDifferentLengthCommandException)
             self.assertEqual(e.trace[0], self.subComA)
+    
+    def test_消息类别错误(self):
+        try:
+            self.root.matchAndCall("root c", self.receiveEvent)
+        except MatchAndCallException as e:
+            self.assertEqual(e.type, MatchFailedCommandException)
