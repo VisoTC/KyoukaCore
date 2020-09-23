@@ -5,9 +5,14 @@
 >
 > 当前唯一指定插件为：PCR 报刀插件（开发中）
 
-[![Build Status](https://szlytlyt.visualstudio.com/KyoukaCore/_apis/build/status/VisoTC.KyoukaCore?branchName=Next)](https://szlytlyt.visualstudio.com/KyoukaCore/_build/latest?definitionId=1&branchName=Next)
+[![Build Status](https://szlytlyt.visualstudio.com/KyoukaCore/_apis/build/status/VisoTC.KyoukaCore?branchName=master)](https://szlytlyt.visualstudio.com/KyoukaCore/_build/latest?definitionId=1&branchName=master)
 
 当前处于开发状态，随时会有更变
+# 预期支持功能
+- [ ] 定时器、任务计划
+- [x] 命令系统
+- [ ] 事件（好友申请、群聊退群加群）支持与处理
+- [x] 基础消息收发（好友、群聊、临时消息）
 # 开发方法
 ## 开发 Bridge（与机器人通讯）
 ```python
@@ -40,7 +45,7 @@ from Core.Event.MsgEvent.MsgInfo import PrivateMsgInfo, GroupPrivateMsgInfo, Gro
 # 接收的消息对象 
 from Core.Event import ReceiveEvent
 # 创建机器人对象
-service = BridgeService(ServiceInfo(**{
+service = PluginService(ServiceInfo(**{
     'packageName': "com.visotc.KyoukaCore.ExamplePlugin",
     'name': "插件",
     'version': "dev",
