@@ -323,7 +323,7 @@ class PCR():
 
     def bind(self, member, playerid):
         try:
-            log = Bind.get(playerID=playerid)
+            log = Bind.get(group=self.gid, playerID=playerid)
             if log.member == None:
                 log.member = member
                 log.save()
