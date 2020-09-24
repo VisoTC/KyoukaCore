@@ -129,8 +129,9 @@ def _getPCRObj(event: ReceiveEvent[MsgEvent]) -> PCR:
     if isinstance(event.payload.msgInfo, GroupMsgInfo):
         try:
             return pcrPlugin.context['Groups'][int(event.source.name)][event.payload.msgInfo.GroupId]
-        except KeyError:
+        except KeyError as e:
             pcrPlugin.api.reply(event, TextMsg("本群还未注册，不支持此功能"))
+            raise e
     else:
         pcrPlugin.api.reply(event, TextMsg("此功能只支持群聊哦"))
         raise KeyError
