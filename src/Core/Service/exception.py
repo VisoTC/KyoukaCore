@@ -90,3 +90,11 @@ class NotFoundGroup(UserObjException):
 
 class NotFoundUser(UserObjException):
     """找不到指定好友"""
+
+# ===================================
+
+class ServiceAPIException(ServiceException):
+    """API 错误"""
+
+class MsgTypeError(ServiceAPIException):
+    """消息类型错误"""

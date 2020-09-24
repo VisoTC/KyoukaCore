@@ -1,11 +1,11 @@
 from typing import Union
 from typing import *
 
-
+from ..Event.MsgEvent.MsgInfo import GroupMsgInfo, GroupPrivateMsgInfo
 from ..Event.MsgEvent.MsgContent import TextMsg
 from .Service import Service, ServiceInfo, ServiceType, ServiceAPI, Command
 from . import ServiceManager
-from .exception import ArgsDifferentLengthCommandException, CommandISRegisterException, MatchAndCallException, MatchFailedCommandException, ServiceNotReadyException, NotFoundServiceException
+from .exception import ArgsDifferentLengthCommandException, CommandISRegisterException, MatchAndCallException, MatchFailedCommandException, MsgTypeError, ServiceNotReadyException, NotFoundServiceException
 from ..Event import EventPayloadBase, Receiver, ReceiveEvent, Eventer
 from ..Event.MsgEvent import MsgEvent, MsgContent
 from .Bridge import BridgeService
@@ -39,7 +39,13 @@ class PluginAPI(ServiceAPI):
         """获得群聊列表"""
         return self.__getService(bridgename).data.get("GroupsList")
 
-    def isGroupAdmin(self, bridgename: Union[Eventer, str],gid:int, member: int):
+    def eventUserIsGroupAdmin(self, event: ReceiveEvent[MsgEvent]):
+        if isinstance(event.payload.msgInfo, GroupMsgInfo):
+            return self.isGroupAdmin(event.source, event.payload.msgInfo.GroupId, event.payload.msgInfo.UserId)
+        else:
+            raise MsgTypeError
+
+    def isGroupAdmin(self, bridgename: Union[Eventer, str], gid: int, member: int):
         """判断是不是管理员"""
         return self.getGroupsList(bridgename).get(gid).member.get(member).isAdmin
 
