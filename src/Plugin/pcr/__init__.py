@@ -88,7 +88,7 @@ def cronRank(data):
             rankInfo = pcr.rank()
             if isinstance(rankInfo, TeamInfo):
                 pcrPlugin.api.sendMsg(Eventer(botuid, ServiceType.Bridge), MsgEvent(GroupMsgInfo(gid), TextMsg(
-                    "公会:{}\n当前排名：{} 总分：{}".format(rankInfo.clanName, rankInfo.rank, rankInfo.damage))))
+                    "公会:{}\n当前排名：{} 总分：{}".format(rankInfo.clanName, rankInfo.rank, format(rankInfo.damage, ",")))))
 
 
 def cronAutoReport(data):
@@ -380,7 +380,7 @@ def rank(event: ReceiveEvent[MsgEvent]):
     rankInfo = pcr.rank()
     if isinstance(rankInfo, TeamInfo):
         pcrPlugin.api.reply(event, TextMsg(
-            "公会:{}\n当前排名：{} 总分：{}".format(rankInfo.clanName, rankInfo.rank, rankInfo.damage)))
+            "公会:{}\n当前排名：{} 总分：{}".format(rankInfo.clanName, rankInfo.rank, format(rankInfo.damage, ","))))
 
 
 def intCommand():
@@ -390,7 +390,7 @@ def intCommand():
     cLeft = Command('剩刀', '查看没有出刀的人', GroupMsgInfo, func=left)
     cBossinfo = Command('boss', "当前 BOSS 剩余血量", GroupMsgInfo, func=bossinfo)
     cBind = Command('bind', "与游戏内用户绑定", GroupMsgInfo, func=bindPlayer)
-    cDelBind = Command('delbind', "与游戏内用户解除绑定", GroupMsgInfo, func=delBindPlayer)
+    cDelBind = Command('delbind', "与游戏内用户", GroupMsgInfo, func=delBindPlayer)
     cLogin = Command('apibind', "绑定 api 账户", PrivateMsgInfo, func=login)
     cRank = Command('rank', "查看当前排名", GroupMsgInfo, func=rank)
     rootCommand = Command("pcr", "PCR 公会管理协助插件", None,
