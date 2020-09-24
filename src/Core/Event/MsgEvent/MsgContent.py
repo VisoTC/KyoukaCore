@@ -65,7 +65,7 @@ class PicMsg(MsgContent):
     """图片消息"""
     _picBuff: Union[BytesIO, Dict[str, Union[str]]]
 
-    def __init__(self, picBuff: BufferedIOBase, forword: Union[PicMsgForword, bool] = False) -> None:
+    def __init__(self, picBuff: Union[BufferedIOBase,bytes], forword: Union[PicMsgForword, bool] = False) -> None:
         """
         :parmam picBuff: 流
         :parmam forword: 转发标记，若无就无
@@ -74,15 +74,19 @@ class PicMsg(MsgContent):
         self._forword:PicMsgForword = forword if not isinstance(forword,bool) else PicMsgForword(
             False, False)
 
-    def __loadImg(self, picBuff: BufferedIOBase):
-        if not picBuff.seekable() and picBuff.tell() != 0:
-            raise UnsupportedOperation
+    def __loadImg(self, picBuff: Union[BufferedIOBase,bytes]):
+        if isinstance(picBuff,BufferedIOBase):
+            if not picBuff.seekable() and picBuff.tell() != 0:
+                raise UnsupportedOperation
+            else:
+                picBuff.seek(0)
+            Buff = BytesIO(picBuff.read())
         else:
-            picBuff.seek(0)
-        Buff = BytesIO(picBuff.read())
-        picBuff.seek(0)
+            Buff = BytesIO(picBuff)
+        Buff.seek(0)
         if imghdr.what(None, h=Buff.getvalue()) is None:  # 不是图片就报错
             raise UnknowPicTypeException
+        Buff.seek(0)
         return Buff
 
     @property

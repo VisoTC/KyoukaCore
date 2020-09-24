@@ -26,6 +26,7 @@ from .exception import MustOneArgsCommandException, CommandISRegisterException
 
 from .msgInfoTypeEnum import MsgInfoTypeEnum
 
+
 class ServiceInfo(ReadOnly):
     """
     服务属性
@@ -37,7 +38,6 @@ class ServiceInfo(ReadOnly):
         self.version = version
         self.author = author
         self._readOnlyLock()
-
 
 
 class ServiceReady():
@@ -115,12 +115,20 @@ class Service(metaclass=ABCMeta):
                                         str], List[Callable]] = {}
 
         self.eventername = self._serviceInfo.packageName
+        self.__context = {}
 
         self.logger.info("开始载入：%s" % self.info.name)
 
     @property
     def config(self) -> Config:
         return self.__config
+
+    @property
+    def context(self):
+        """
+        非线程安全，插件内 Context
+        """
+        return self.__context
 
     @property
     def info(self) -> ServiceInfo:
@@ -220,4 +228,3 @@ class Service(metaclass=ABCMeta):
         if not callbackName in self._registerCalls.keys():
             self._registerCalls[cName] = []
         self._registerCalls[cName].append(func)
-

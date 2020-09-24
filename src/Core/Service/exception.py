@@ -79,3 +79,14 @@ class CommandISRegisterException(ServiceException):
 
 class NotFoundServiceException(ServiceException):
     """找不到指定的服务插件"""
+
+# ===============================
+
+class UserObjException(ServiceException):
+    """用户对象异常"""
+
+class NotFoundGroup(UserObjException):
+    """找不到指定群"""
+
+class NotFoundUser(UserObjException):
+    """找不到指定好友"""

@@ -5,6 +5,8 @@ __pycache__
 /*.json
 *.db
 /tmp*.*
+test.py
 /OPQBot
 msg_demo.json
 src/tmp.py
+*/database/*

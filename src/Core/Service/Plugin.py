@@ -3,7 +3,7 @@ from typing import *
 
 
 from ..Event.MsgEvent.MsgContent import TextMsg
-from .Service import Service, ServiceInfo, ServiceType, ServiceAPI,Command
+from .Service import Service, ServiceInfo, ServiceType, ServiceAPI, Command
 from . import ServiceManager
 from .exception import ArgsDifferentLengthCommandException, CommandISRegisterException, MatchAndCallException, MatchFailedCommandException, ServiceNotReadyException, NotFoundServiceException
 from ..Event import EventPayloadBase, Receiver, ReceiveEvent, Eventer
@@ -11,7 +11,6 @@ from ..Event.MsgEvent import MsgEvent, MsgContent
 from .Bridge import BridgeService
 from .UserObj import Users, Groups
 from .msgInfoTypeEnum import MsgInfoTypeEnum
-
 
 
 class PluginAPI(ServiceAPI):
@@ -34,10 +33,15 @@ class PluginAPI(ServiceAPI):
         :param bridgename: 桥的名称
         :return: 列表
         """
-        return self.__getService(bridgename).data.get("FriendsList", default=Users())
+        return self.__getService(bridgename).data.get("FriendsList")
 
     def getGroupsList(self, bridgename: Union[Eventer, str]):
-        return self.__getService(bridgename).data.get("GroupsList", default=Groups())
+        """获得群聊列表"""
+        return self.__getService(bridgename).data.get("GroupsList")
+
+    def isGroupAdmin(self, bridgename: Union[Eventer, str],gid:int, member: int):
+        """判断是不是管理员"""
+        return self.getGroupsList(bridgename).get(gid).member.get(member).isAdmin
 
     def reply(self, sourceEvent: ReceiveEvent, msgContent: Union[MsgContent, List[MsgContent]], replyMsg=False):
         if not (isinstance(sourceEvent, ReceiveEvent) and isinstance(sourceEvent.payload, MsgEvent) and (isinstance(msgContent, MsgContent) or isinstance(msgContent, list))):
@@ -84,10 +88,12 @@ class PluginService(Service):
                                         call(event, e)
                         except MatchFailedCommandException:  # 不是自己的命令
                             pass
+                        except Exception as e:
+                            self.logger.exception(e)
                     else:
                         super()._receiveMsgEvent(event)
 
-    def _commandArgsError(self, event:ReceiveEvent[MsgEvent], e):
+    def _commandArgsError(self, event: ReceiveEvent[MsgEvent], e):
         com = []
         for i in e.trace[::-1]:
             com.append(i.command)
@@ -96,14 +102,15 @@ class PluginService(Service):
                                                com, e.trace[0].func.argsText)
         self.api.reply(event, TextMsg(msg))
 
-    def _commandNotFound(self, event:ReceiveEvent[MsgEvent], e):
+    def _commandNotFound(self, event: ReceiveEvent[MsgEvent], e):
         com = []
         for i in e.trace[::-1]:
             com.append(i.command)
         com = " ".join(com)
         subCom = []
         for i in e.trace[0].subs:
-            if not MsgInfoTypeEnum.msgInfo2Enum(type(event.payload.msgInfo)).value in i.msgtypes : # 跳过不匹配当前
+            # 跳过不匹配当前
+            if not MsgInfoTypeEnum.msgInfo2Enum(type(event.payload.msgInfo)).value in i.msgtypes:
                 continue
             subCom.append("/" + com + " " + i.command +
                           ((" " + i.func.argsText)if i.func != None else "") + ": " + i.doc)

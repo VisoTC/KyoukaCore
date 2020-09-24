@@ -1,6 +1,8 @@
 import collections
 from typing import List, Optional, Iterable, Union
 
+from .exception import NotFoundGroup, NotFoundUser
+
 
 class User(collections.UserDict):
     def __init__(self, uid: int, nickName: str) -> None:
@@ -24,7 +26,7 @@ class Users(collections.UserList):
             raise TypeError
         super().append(value)
 
-    def get(self, uid, default=None):
+    def get(self, uid) -> User:
         """
         获得指定 uid 的信息
         """
@@ -32,7 +34,7 @@ class Users(collections.UserList):
             if user.uid == uid:
                 return user
         else:
-            return default
+            raise NotFoundUser
 
 
 class GroupMember(User):
@@ -50,6 +52,7 @@ class GroupMember(User):
             return True
         return self.data['isAdmin']
 
+
 class GroupMembers(collections.UserList):
     def __init__(self, initlist: Optional[Iterable[GroupMember]] = None) -> None:
         return super().__init__(initlist)
@@ -59,7 +62,7 @@ class GroupMembers(collections.UserList):
             raise TypeError
         super().append(value)
 
-    def get(self, uid, default=None):
+    def get(self, uid) -> GroupMember:
         """
         获得指定 uid 的信息
         """
@@ -67,7 +70,7 @@ class GroupMembers(collections.UserList):
             if u.uid == uid:
                 return u
         else:
-            return default
+            raise NotFoundUser
 
 
 class Group(collections.UserDict):
@@ -89,7 +92,7 @@ class Group(collections.UserDict):
     @property
     def own(self) -> User: return self.data['own']
     @property
-    def member(self) -> List[User]: return self.data['member']
+    def member(self) -> GroupMembers: return self.data['member']
 
 
 class Groups(collections.UserList):
@@ -101,11 +104,9 @@ class Groups(collections.UserList):
             raise TypeError
         super().append(value)
 
-    def get(self, gid, default=None):
+    def get(self, gid: int) -> Group:
         for g in self.data:
-            if g.gid == gid:
+            if g.gid == int(gid):
                 return g
         else:
-            return default
-
-
+            raise NotFoundGroup

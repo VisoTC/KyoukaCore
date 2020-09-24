@@ -16,7 +16,7 @@ class GroupMsgInfo(MsgInfo):
         :param FromNickName: 发送者昵称（发送可选）
         """
         self._info = {
-            "GroupId": GroupId,
+            "GroupId": int(GroupId),
             "GroupName": GroupName,
             "UserId": UserId,
             "UserName": UserName,
