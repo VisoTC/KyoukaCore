@@ -110,7 +110,7 @@ def autoReport(botuid, gid, pcr: PCR):
         if member != None:
             msg.append(AtMsg(int(member)))
         else:
-            msg.append(TextMsg('\n*此玩家还未绑定*'))
+            msg.append(TextMsg('*此玩家还未绑定*'))
         msg.append(TextMsg("\n" + DamageLogReturn.bfAPIDamage2Self(
             newlog,
             period=pcr.battleID,
