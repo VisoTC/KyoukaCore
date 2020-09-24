@@ -179,7 +179,7 @@ def queryDamage(event: ReceiveEvent[MsgEvent]):
         try:
             mapping=pcr.getMappingInfo(member=user)
         except NotFoundPlayerMapping:
-            pcrPlugin.api.reply(event, TextMsg("你还没有绑定游戏账户哦"))
+            pcrPlugin.api.reply(event, TextMsg("{}还没有绑定游戏账户哦".format("你" if atMsg == None else "该玩家")))
             return
         playerid=mapping['playerID']
         logs=pcr.queryDamageASMember(playerid)
