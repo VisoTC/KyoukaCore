@@ -1,5 +1,5 @@
 import json
-from typing import Any, Callable, Dict, List, Optional, Text
+from typing import Any, Callable, Dict, List, Optional, Text, Tuple
 import os
 import time
 
@@ -32,7 +32,7 @@ pcrPlugin = PluginService(ServiceInfo(**{
     'version': "1",
     'author': "VisoTC"
 }))
-debug = True
+debug = False
 pcrPlugin.context['Groups'] = {}
 
 cronManager = CronManager()
@@ -40,7 +40,7 @@ cronManager = CronManager()
 
 @pcrPlugin.register("register")
 def main(unuse):
-    if not debug:
+    if debug:
         db.init(':memory:')
     else:
         dbPath = os.path.join(os.path.split(
@@ -84,8 +84,8 @@ def cronRank(data):
         return
     for botuid in pcrPlugin.context['Groups'].keys():
         for gid in pcrPlugin.context['Groups'][botuid].keys():
-            pcr: PCR=pcrPlugin.context['Groups'][botuid][gid]
-            rankInfo=pcr.rank()
+            pcr: PCR = pcrPlugin.context['Groups'][botuid][gid]
+            rankInfo = pcr.rank()
             if isinstance(rankInfo, TeamInfo):
                 pcrPlugin.api.sendMsg(Eventer(botuid, ServiceType.Bridge), MsgEvent(GroupMsgInfo(gid), TextMsg(
                     "公会:{}\n当前排名：{} 总分：{}".format(rankInfo.clanName, rankInfo.rank, rankInfo.damage))))
@@ -101,24 +101,22 @@ def cronAutoReport(data):
 def autoReport(botuid, gid, pcr: PCR):
     '''自动从 Bigfun 拉取出刀数据'''
     pcr.syncMappingInfo()  # 同步公会名称数据
-    isNewData=False
+    isNewData = False
     for newlog in pcr.autoReport():  # 同步出刀数据并返回新记录
-        isNewData=True
-        playerMapping=pcr.getMappingInfo(name=newlog.name)
-        msg: List[MsgContent]=[
-            TextMsg(DamageLogReturn.bfAPIDamage2Self(
-                newlog,
-                period=pcr.battleID,
-                group=pcr.gid,
-                playerid=playerMapping.playerID
-            ).logText(name=playerMapping.playerName, bossname=pcr.bossList[newlog._step - 1].name))
-        ]
-
-        member: Optional[str]=playerMapping.mamber
+        isNewData = True
+        playerMapping = pcr.getMappingInfo(name=newlog.name)
+        msg: List[MsgContent] = []
+        member: Optional[str] = playerMapping.mamber
         if member != None:
             msg.append(AtMsg(int(member)))
         else:
             msg.append(TextMsg('\n*此玩家还未绑定*'))
+        msg.append(TextMsg("\n" + DamageLogReturn.bfAPIDamage2Self(
+            newlog,
+            period=pcr.battleID,
+            group=pcr.gid,
+            playerid=playerMapping.playerID
+        ).logText(name=playerMapping.playerName, bossname=pcr.bossList[newlog._step - 1].name)))
 
         pcrPlugin.api.sendMsg(
             Eventer(botuid, ServiceType.Bridge), MsgEvent(GroupMsgInfo(gid), msg))
@@ -140,14 +138,14 @@ def _getPCRObj(event: ReceiveEvent[MsgEvent]) -> PCR:
 
 def bossinfo(event: ReceiveEvent[MsgEvent]):
     if isinstance(event.payload.msgInfo, GroupMsgInfo):
-        pcr=_getPCRObj(event)
+        pcr = _getPCRObj(event)
         pcrPlugin.api.reply(event, TextMsg(str(pcr.currentBossInfo())))
 
 
 def syncNow(event: ReceiveEvent[MsgEvent]):
     '''立即更新，需要群管理员'''
     if isinstance(event.payload.msgInfo, GroupMsgInfo):
-        pcr=_getPCRObj(event)
+        pcr = _getPCRObj(event)
         if pcrPlugin.api.isGroupAdmin(event.source, event.payload.msgInfo.GroupId, event.payload.msgInfo.UserId):
             autoReport(event.source.name, event.payload.msgInfo.GroupId, pcr)
             pcrPlugin.api.reply(event, TextMsg("已完成同步"))
@@ -155,36 +153,46 @@ def syncNow(event: ReceiveEvent[MsgEvent]):
             pcrPlugin.api.reply(event, TextMsg("需要是群管理员才可以调用此功能哦"))
 
 
-def queryDamage(event: ReceiveEvent[MsgEvent]):
+def _getAtList(event: ReceiveEvent[MsgEvent], default: str) -> Tuple[List[str], bool]:
     if isinstance(event.payload.msgInfo, GroupMsgInfo):
-        atMsg: Optional[AtMsg]=None
+        atMsg: Optional[AtMsg] = None
         for m in event.payload.msgContent:
             if isinstance(m, AtMsg):
                 if atMsg is None:
-                    atMsg=m
+                    atMsg = m
                 else:
                     pcrPlugin.logger.warn("重复消息链，抛弃")
-        pcr=_getPCRObj(event)
         if atMsg == None:
-            user=event.payload.msgInfo.UserId
-        elif len(atMsg.atUser) != 1:
-            pcrPlugin.api.reply(event, TextMsg(
-                "只能@一个人哦，而你@了%s个" % len(atMsg.atUser)))
-            return
+            user = [default], False
         else:
+            user = atMsg.atUser[0], True
+        return user
+    else:
+        return [default], False
+
+
+def queryDamage(event: ReceiveEvent[MsgEvent]):
+    if isinstance(event.payload.msgInfo, GroupMsgInfo):
+        user, isAtUser = _getAtList(event, event.payload.msgInfo.UserId)
+        if isAtUser:
             if not pcrPlugin.api.isGroupAdmin(event.source, event.payload.msgInfo.GroupId, event.payload.msgInfo.UserId):
                 pcrPlugin.api.reply(event, TextMsg("需要是管理员才可以查询其他人的出刀记录哦"))
                 return
-            user=atMsg.atUser[0]
-        try:
-            mapping=pcr.getMappingInfo(member=user)
-        except NotFoundPlayerMapping:
-            pcrPlugin.api.reply(event, TextMsg("{}还没有绑定游戏账户哦".format("你" if atMsg == None else "该玩家")))
+        if len(user) != 1:
+            pcrPlugin.api.reply(event, TextMsg(
+                "只能@一个人哦，而你@了%s个" % len(user)))
             return
-        playerid=mapping['playerID']
-        logs=pcr.queryDamageASMember(playerid)
+        pcr = _getPCRObj(event)
         try:
-            logMsg=["今日已出{}刀（完整刀{}刀）".format(*pcr.getK(logs)[playerid])]
+            mapping = pcr.getMappingInfo(member=user[0])
+        except NotFoundPlayerMapping:
+            pcrPlugin.api.reply(event, TextMsg(
+                "{}还没有绑定游戏账户哦".format("你" if user[0] == event.payload.msgInfo.UserId else "该玩家")))
+            return
+        playerid = mapping['playerID']
+        logs = pcr.queryDamageASMember(playerid)
+        try:
+            logMsg = ["今日已出{}刀（完整刀{}刀）".format(*pcr.getK(logs)[playerid])]
         except KeyError:
             pcrPlugin.api.reply(event, TextMsg(
                 "玩家：{} 今日还没有出刀记录哦".format(mapping.playerName)))
@@ -198,8 +206,8 @@ def queryDamage(event: ReceiveEvent[MsgEvent]):
 def urge(event: ReceiveEvent[MsgEvent]):
     """催刀"""
     if isinstance(event.payload.msgInfo, GroupMsgInfo):
-        pcr=_getPCRObj(event)
-        u=_queryK(pcr, False)
+        pcr = _getPCRObj(event)
+        u = _queryK(pcr, False)
         if u != None:
             pcrPlugin.api.reply(event, [TextMsg("当前还剩下{}刀".format(u[0][0]))])
             if(u[0][0] == 0):
@@ -209,10 +217,10 @@ def urge(event: ReceiveEvent[MsgEvent]):
                     continue
                 if left == 0:
                     continue
-                notBind=[]
-                atlist=[]
+                notBind = []
+                atlist = []
                 for playerID in lis:
-                    mapping=pcr.getMappingInfo(playerID=playerID)
+                    mapping = pcr.getMappingInfo(playerID=playerID)
                     if mapping.mamber == None:
                         notBind.append(mapping.playerName)
                     else:
@@ -227,8 +235,8 @@ def urge(event: ReceiveEvent[MsgEvent]):
 
 def left(event: ReceiveEvent[MsgEvent]):
     if isinstance(event.payload.msgInfo, GroupMsgInfo):
-        pcr=_getPCRObj(event)
-        u=_queryK(pcr, True)
+        pcr = _getPCRObj(event)
+        u = _queryK(pcr, True)
         if u != None:
             pcrPlugin.api.reply(event, [TextMsg("当前还剩下{}刀".format(u[0][0]))])
             if(u[0][0] == 0):
@@ -243,23 +251,23 @@ def left(event: ReceiveEvent[MsgEvent]):
 
 
 def _queryK(pcr: PCR, returnPlayerName=False):
-    logs=pcr.queryDamageASMember()
-    klog=pcr.getK(logs)
-    lefts={
+    logs = pcr.queryDamageASMember()
+    klog = pcr.getK(logs)
+    lefts = {
         3: [],
         2: [],
         1: [],
         0: []
     }
-    allLeft=0
-    empty=True
+    allLeft = 0
+    empty = True
     for mapping in pcr.getAllMappingInfo():
-        empty=False
+        empty = False
         try:
-            _, complete=klog[mapping.playerID]
+            _, complete = klog[mapping.playerID]
         except KeyError:
-            complete=0
-        left=3 - complete
+            complete = 0
+        left = 3 - complete
         allLeft += left if left > 0 else 0
         if left > 0:
             if returnPlayerName:
@@ -282,7 +290,7 @@ def login(event: ReceiveEvent[MsgEvent], gid):
         except NotFoundGroup:
             pcrPlugin.api.reply(event, TextMsg("我还没有加入这个群哦"))
             return
-        pcr=PCR(int(event.source.name), gid)
+        pcr = PCR(int(event.source.name), gid)
         try:
             pcrPlugin.api.reply(
                 event, [PicMsg(pcr.loginQrcode()), TextMsg("请使用 bilibili 扫码登录")])
@@ -294,46 +302,46 @@ def login(event: ReceiveEvent[MsgEvent], gid):
 
 
 def checklogin(data: List[Any]):
-    event: ReceiveEvent[MsgEvent]=data[1]
-    lastStatus: BigFunAPILoginStatus=data[2]
+    event: ReceiveEvent[MsgEvent] = data[1]
+    lastStatus: BigFunAPILoginStatus = data[2]
     if data[3] >= 60:
         pcrPlugin.api.reply(event, TextMsg("由于登录超时，系统已取消当前登录操作"))
-    pcr: PCR=data[0]
+    pcr: PCR = data[0]
     data[3] += 1
-    status=pcr.checkLogin()
+    status = pcr.checkLogin()
     if lastStatus != status:
         if status == BigFunAPILoginStatus.SCANED:
-            msg="已扫码，等待确认"
+            msg = "已扫码，等待确认"
             pcrPlugin.api.reply(data[1], TextMsg(msg))
         elif status == BigFunAPILoginStatus.SUCCCESS:
-            info=pcr.userInfo()
-            msg="登陆成功！\n当前用户：{}\n所在公会：{}\n即将开始同步战斗数据".format(
+            info = pcr.userInfo()
+            msg = "登陆成功！\n当前用户：{}\n所在公会：{}\n即将开始同步战斗数据".format(
                 info.playerName, info.clanName)
             pcrPlugin.api.reply(data[1], TextMsg(msg))
             addPCR(event.source.name, pcr.gid, pcr)
             pcr.syncMappingInfo()
-            log=pcr.autoReport()
-            msg="公会：{}同步完成，已同步{}条数据\n{}".format(
+            log = pcr.autoReport()
+            msg = "公会：{}同步完成，已同步{}条数据\n{}".format(
                 info.clanName, len(log), str(pcr.currentBossInfo()))
             pcrPlugin.api.reply(event, TextMsg(msg))
             pcrPlugin.api.sendMsg(event.source, MsgEvent(
                 GroupMsgInfo(pcr.gid), TextMsg(msg)))
             raise RemoveCron
         elif status == BigFunAPILoginStatus.NOT_CALL_LOGIN:
-            msg="二维码已失效，请重新扫码"
+            msg = "二维码已失效，请重新扫码"
             pcrPlugin.api.reply(data[1], TextMsg(msg))
             raise RemoveCron
         elif status == BigFunAPILoginStatus.FAILER:
-            msg="登陆失败"
+            msg = "登陆失败"
             pcrPlugin.api.reply(data[1], TextMsg(msg))
             raise RemoveCron
-    data[2]=status
+    data[2] = status
 
 
 def bindPlayer(event: ReceiveEvent[MsgEvent], playerID: int):
     if isinstance(event.payload.msgInfo, GroupMsgInfo):
-        pcr=_getPCRObj(event)
-        status, name=pcr.bind(event.payload.msgInfo.UserId, playerID)
+        pcr = _getPCRObj(event)
+        status, name = pcr.bind(event.payload.msgInfo.UserId, playerID)
         if status == "ok":
             pcrPlugin.api.reply(event, TextMsg(
                 '成功与游戏名为：{} 的账户绑定'.format(name)))
@@ -343,25 +351,50 @@ def bindPlayer(event: ReceiveEvent[MsgEvent], playerID: int):
             pcrPlugin.api.reply(event, TextMsg('在公会内找不到此用户'))
 
 
+def delBindPlayer(event: ReceiveEvent[MsgEvent], playerID: int):
+    if isinstance(event.payload.msgInfo, GroupMsgInfo):
+        user, isAtUser = _getAtList(event, event.payload.msgInfo.UserId)
+        if isAtUser:
+            if not pcrPlugin.api.isGroupAdmin(event.source, event.payload.msgInfo.GroupId, event.payload.msgInfo.UserId):
+                pcrPlugin.api.reply(event, TextMsg("需要是管理员才可以解除其他人的绑定哦"))
+                return
+        if len(user) != 1:
+            pcrPlugin.api.reply(event, TextMsg(
+                "只能@一个人哦，而你@了%s个" % len(user)))
+            return
+        pcr = _getPCRObj(event)
+        status, name = pcr.delBind(user[0], playerID,
+                                   force=pcrPlugin.api.eventUserIsGroupAdmin(event) and isAtUser)
+        if status == "ok":
+            pcrPlugin.api.reply(event, TextMsg(
+                '成功与游戏名为：{} 的账户解绑'.format(name)))
+        elif status == "Not Bind You":
+            pcrPlugin.api.reply(event, TextMsg(
+                '游戏名为：{} 的账户绑定的不是你'.format(name)))
+        else:
+            pcrPlugin.api.reply(event, TextMsg('在公会内找不到此用户'))
+
+
 def rank(event: ReceiveEvent[MsgEvent]):
-    pcr: PCR=_getPCRObj(event)
-    rankInfo=pcr.rank()
+    pcr: PCR = _getPCRObj(event)
+    rankInfo = pcr.rank()
     if isinstance(rankInfo, TeamInfo):
         pcrPlugin.api.reply(event, TextMsg(
             "公会:{}\n当前排名：{} 总分：{}".format(rankInfo.clanName, rankInfo.rank, rankInfo.damage)))
 
 
 def intCommand():
-    cSync=Command("sync", "【管理员】立即同步数据", GroupMsgInfo, func=syncNow)
-    cQuery=Command('查刀', '查询出刀情况', GroupMsgInfo, func=queryDamage)
-    cUrge=Command('催刀', 'at 没有出刀的人', GroupMsgInfo, func=urge)
-    cLeft=Command('剩刀', '查看没有出刀的人', GroupMsgInfo, func=left)
-    cBossinfo=Command('boss', "当前 BOSS 剩余血量", GroupMsgInfo, func=bossinfo)
-    cBind=Command('bind', "与游戏内用户绑定", GroupMsgInfo, func=bindPlayer)
-    cLogin=Command('apibind', "绑定 api 账户", PrivateMsgInfo, func=login)
-    cRank=Command('rank', "查看当前排名", GroupMsgInfo, func=rank)
-    rootCommand=Command("pcr", "PCR 公会管理协助插件", None,
-                          sub=[cSync, cQuery, cUrge, cLogin, cBossinfo, cBind, cLeft, cRank])
+    cSync = Command("sync", "【管理员】立即同步数据", GroupMsgInfo, func=syncNow)
+    cQuery = Command('查刀', '查询出刀情况', GroupMsgInfo, func=queryDamage)
+    cUrge = Command('催刀', 'at 没有出刀的人', GroupMsgInfo, func=urge)
+    cLeft = Command('剩刀', '查看没有出刀的人', GroupMsgInfo, func=left)
+    cBossinfo = Command('boss', "当前 BOSS 剩余血量", GroupMsgInfo, func=bossinfo)
+    cBind = Command('bind', "与游戏内用户绑定", GroupMsgInfo, func=bindPlayer)
+    cDelBind = Command('delbind', "与游戏内用户解除绑定", GroupMsgInfo, func=delBindPlayer)
+    cLogin = Command('apibind', "绑定 api 账户", PrivateMsgInfo, func=login)
+    cRank = Command('rank', "查看当前排名", GroupMsgInfo, func=rank)
+    rootCommand = Command("pcr", "PCR 公会管理协助插件", None,
+                          sub=[cSync, cQuery, cUrge, cLogin, cBossinfo, cBind, cLeft, cRank, cDelBind])
     pcrPlugin.registerCommand(rootCommand)
 
     pcrPlugin.initDone(True)

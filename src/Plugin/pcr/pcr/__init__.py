@@ -332,3 +332,15 @@ class PCR():
                 return "Binded", str(log.playerName)
         except DoesNotExist:
             return "NotFound", None
+
+    def delBind(self, member, playerid,force=False):
+        try:
+            log = Bind.get(group=self.gid, playerID=playerid,member=member)
+            if log.member == member or force:
+                log.member = None
+                log.save()
+                return "ok", str(log.playerName)
+            else:
+                return "Not Bind You", str(log.playerName)
+        except DoesNotExist:
+            return "NotFound", None
