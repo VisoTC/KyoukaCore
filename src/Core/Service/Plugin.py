@@ -72,7 +72,7 @@ class PluginService(Service):
                     if content.content[0] == "/":
                         try:
                             self._command.matchAndCall(
-                                content.content[1:], event)
+                                content.content[1:].split("@")[0], event)
                         except MatchAndCallException as e:
                             if e.type == ArgsDifferentLengthCommandException:
                                 if len(self._registerCalls.get("ArgsError@command", [])) == 0:
