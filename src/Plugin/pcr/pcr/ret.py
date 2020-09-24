@@ -88,8 +88,9 @@ class DamageLogReturn(Return):
                    reimburse=ormObj.reimburse,
                    time=ormObj.time,
                    score=ormObj.score)
+
     @classmethod
-    def bfAPIDamage2Self(cls,bfAPIDamage:Damage,period:int,group:int,playerid:int):
+    def bfAPIDamage2Self(cls, bfAPIDamage: Damage, period: int, group: int, playerid: int):
         return cls(group=group,
                    period=period,
                    playerid=playerid,
@@ -103,7 +104,7 @@ class DamageLogReturn(Return):
 
     def logText(self, name: Optional[str] = None, bossname: Optional[str] = None):
         status = []
-        logMsg = "[{status}]{name}对{bossName}造成了{damage}伤害"
+        logMsg = "[{status}]{name}对{stage}周目{bossName}造成了{damage}伤害"
         if self.kill:
             logMsg += "并击破"
             status.append("尾刀")
@@ -111,15 +112,18 @@ class DamageLogReturn(Return):
             status.append('补偿刀')
         if len(status) == 0:
             status.append('正常刀')
-        logMsg += "\n得分：%s" % self.score
+        logMsg += "\n得分：%s" % format(self.score, ",")
         return logMsg.format(
             status=",".join(status),
             name=name if name != None else "id: %s" % self.playerid,
-            bossName=bossname if bossname != None else "%s王" % self.step,
-            damage=self.damage)
+            stage=self.stage,
+            bossName=bossname +
+            "(%s王)" % self.step if bossname != None else "%s王" % self.step,
+            damage=format(self.damage, ","))
 
     def __repr__(self) -> str:
         return self.logText()
+
 
 class DamageLogListReturn(collections.UserList):
     data: List[DamageLogReturn]
@@ -137,11 +141,12 @@ class DamageLogListReturn(collections.UserList):
                 makeUp += 1
         return all, all-makeUp
 
+
 class MappingInfo(collections.UserDict):
 
     @property
-    def mamber(self):return self['mamber']
+    def mamber(self): return self['mamber']
     @property
-    def playerID(self):return self['playerID']
+    def playerID(self): return self['playerID']
     @property
-    def playerName(self):return self['playerName']
+    def playerName(self): return self['playerName']
