@@ -22,7 +22,7 @@ from .orm.reserve import Reserve
 from .orm.apiAuthInfo import APIAuthInfo
 from .orm.bind import Bind
 from .utlis import tz_UTC
-from .pcr.ret import DamageLogReturn
+from .pcr.ret import DamageLogReturn, ReserveData
 
 from .cron import Cron, CronManager, RemoveCron
 
@@ -63,8 +63,8 @@ def main(unuse):
     for group in APIAuthInfo.select():
         pcr = PCR(group.botUid, group.gid, json.loads(group.cookie))
         addPCR(group.botUid, group.gid, pcr)
-    cronManager.append(Cron(60*1, cronAutoReport))
-    cronManager.append(Cron(60*30, cronRank))
+    #cronManager.append(Cron(60*1, cronAutoReport))
+    #cronManager.append(Cron(60*30, cronRank))
     cronManager.start()
 
 
@@ -102,6 +102,7 @@ def autoReport(botuid, gid, pcr: PCR):
     '''自动从 Bigfun 拉取出刀数据'''
     pcr.syncMappingInfo()  # 同步公会名称数据
     isNewData = False
+    lastBossInfo = pcr.currentBossInfo()
     for newlog in pcr.autoReport():  # 同步出刀数据并返回新记录
         isNewData = True
         playerMapping = pcr.getMappingInfo(name=newlog.name)
@@ -121,8 +122,29 @@ def autoReport(botuid, gid, pcr: PCR):
         pcrPlugin.api.sendMsg(
             Eventer(botuid, ServiceType.Bridge), MsgEvent(GroupMsgInfo(gid), msg))
     if isNewData:
+        newBossInfo = pcr.currentBossInfo()
         pcrPlugin.api.sendMsg(Eventer(botuid, ServiceType.Bridge), MsgEvent(
-            GroupMsgInfo(gid), TextMsg(str(pcr.currentBossInfo()))))
+            GroupMsgInfo(gid), TextMsg(str(newBossInfo))))
+        step = newBossInfo.step
+        if lastBossInfo.step != newBossInfo.step:
+            query = pcr.queryReserve(newBossInfo.stage, newBossInfo.step)
+        elif newBossInfo.step == 5 and newBossInfo.hp >= 10000000 and lastBossInfo.hp < 10000000:
+            step = 6
+            query = pcr.queryReserve(newBossInfo.stage, step)
+        else:
+            return
+        nofiyId = []
+        for row in query:
+            nofiyId.append(row.member)
+        pcrPlugin.api.sendMsg(Eventer(botuid, ServiceType.Bridge), MsgEvent(
+            GroupMsgInfo(gid), [TextMsg('你预约的{}到了'.format(_ReserveBossID2Name(step,pcr))), AtMsg(nofiyId)]))
+
+
+def _ReserveBossID2Name(i,pcr:Optional[PCR] = None):
+    if pcr is None:
+        return "{}王".format(i) if i < 6 else "5王狂暴"
+    else:
+        return "{}({}王)".format(pcr.bossList[(i if i < 6 else 5) - 1].name,i if i < 6 else 5) 
 
 
 def _getPCRObj(event: ReceiveEvent[MsgEvent]) -> PCR:
@@ -383,22 +405,104 @@ def rank(event: ReceiveEvent[MsgEvent]):
         pcrPlugin.api.reply(event, TextMsg(
             "公会:{}\n当前排名：{} 总分：{}".format(rankInfo.clanName, rankInfo.rank, format(rankInfo.damage, ","))))
 
+# -------------
+#   预约系统
+# -------------
 
-def intCommand():
+
+def addReserve(event: ReceiveEvent[MsgEvent], step: str):
+    if isinstance(event.payload.msgInfo, GroupMsgInfo):
+        notdigitMsg = "请输入 1-6 之间的阿拉伯数字\nP.S.: 6 代表 5 王狂暴"
+        if not step.isdigit():
+            pcrPlugin.api.reply(event, TextMsg(notdigitMsg))
+            return
+        pcr = _getPCRObj(event)
+        try:
+            pcr.getMappingInfo(member=event.payload.msgInfo.UserId)
+        except NotFoundPlayerMapping:
+            pcrPlugin.api.reply(event, TextMsg("尚未绑定账户，暂时无法使用此功能"))
+            return
+        try:
+            status, row = pcr.addReserve(
+                event.payload.msgInfo.UserId, int(step))
+        except ValueError:
+            pcrPlugin.api.reply(event, TextMsg(notdigitMsg))
+            return
+        if status:
+            pcrPlugin.api.reply(event, TextMsg("已预约{}周目{}".format(
+                row.stage,_ReserveBossID2Name(row.step,pcr))))
+        else:
+            pcrPlugin.api.reply(event, TextMsg("你已经预约了{}周目{}".format(
+                row.stage, _ReserveBossID2Name(row.step,pcr))))
+
+
+def delReserve(event: ReceiveEvent[MsgEvent], stage: str, step: str):
+    if isinstance(event.payload.msgInfo, GroupMsgInfo):
+        notdigitMsg = "请输入 1-6 之间的阿拉伯数字\nP.S.: 6 代表 5 王狂暴"
+        if not stage.isdigit():
+            pcrPlugin.api.reply(event, TextMsg("第一个参数需要输入阿拉伯数字哦"))
+            return
+        if not step.isdigit():
+            pcrPlugin.api.reply(event, TextMsg(notdigitMsg))
+            return
+        pcr = _getPCRObj(event)
+        status = pcr.delReserve(
+            stage, step, member=event.payload.msgInfo.UserId)
+        if status:
+            pcrPlugin.api.reply(event, TextMsg("已取消预约{}周目{}".format(
+                stage, _ReserveBossID2Name(step,pcr))))
+        else:
+            pcrPlugin.api.reply(event, TextMsg("在预约列表找不到此预约"))
+
+
+def queryReserve(event: ReceiveEvent[MsgEvent]):
+    if isinstance(event.payload.msgInfo, GroupMsgInfo):
+        pcr = _getPCRObj(event)
+        user, isAtUser = _getAtList(event, event.payload.msgInfo.UserId)
+        if isAtUser:
+            if not pcrPlugin.api.isGroupAdmin(event.source, event.payload.msgInfo.GroupId, event.payload.msgInfo.UserId):
+                pcrPlugin.api.reply(event, TextMsg("需要是管理员才可以查询其他人的出刀记录哦"))
+                return
+        if len(user) != 1:
+            pcrPlugin.api.reply(event, TextMsg(
+                "只能@一个人哦，而你@了%s个" % len(user)))
+            return
+        else:
+            user = user[0]
+        reserveList: List[str] = []
+        for row in pcr.queryAllReserve(member=int(user)):
+            reserveList.append(
+                " - {}周目{}".format(row.stage, _ReserveBossID2Name(row.step,pcr)))
+
+        if len(reserveList) != 0:
+            pcrPlugin.api.reply(event, TextMsg(
+                "预约列表\n{}".format("\n".join(reserveList))))
+        else:
+            pcrPlugin.api.reply(event, TextMsg("无预约"))
+
+
+def initCommand():
     cSync = Command("sync", "【管理员】立即同步数据", GroupMsgInfo, func=syncNow)
     cQuery = Command('查刀', '查询出刀情况', GroupMsgInfo, func=queryDamage)
     cUrge = Command('催刀', 'at 没有出刀的人', GroupMsgInfo, func=urge)
     cLeft = Command('剩刀', '查看没有出刀的人', GroupMsgInfo, func=left)
     cBossinfo = Command('boss', "当前 BOSS 剩余血量", GroupMsgInfo, func=bossinfo)
     cBind = Command('bind', "与游戏内用户绑定", GroupMsgInfo, func=bindPlayer)
-    cDelBind = Command('delbind', "与游戏内用户", GroupMsgInfo, func=delBindPlayer)
-    cLogin = Command('apibind', "绑定 api 账户", PrivateMsgInfo, func=login)
+    cDelBind = Command('delbind', "与游戏内用户解除绑定",
+                       GroupMsgInfo, func=delBindPlayer)
     cRank = Command('rank', "查看当前排名", GroupMsgInfo, func=rank)
+
+    cAddServe = Command('预约', "等到了指定boss提醒你", GroupMsgInfo, func=addReserve)
+    cDelServe = Command('鸽子', "鸽掉某个预约", GroupMsgInfo, func=delReserve)
+    cqueryServe = Command('查预约', "查询预约情况",
+                          GroupMsgInfo, func=queryReserve)
+
+    cLogin = Command('apibind', "绑定 api 账户", PrivateMsgInfo, func=login)
     rootCommand = Command("pcr", "PCR 公会管理协助插件", None,
-                          sub=[cSync, cQuery, cUrge, cLogin, cBossinfo, cBind, cLeft, cRank, cDelBind])
+                          sub=[cSync, cQuery, cUrge, cLogin, cBossinfo, cBind, cLeft, cRank, cDelBind, cAddServe, cDelServe, cqueryServe])
     pcrPlugin.registerCommand(rootCommand)
 
     pcrPlugin.initDone(True)
 
 
-intCommand()
+initCommand()

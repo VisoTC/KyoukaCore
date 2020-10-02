@@ -10,6 +10,8 @@ import collections
 from ..orm.damage import Damage as OrmDamage
 from ..bigFunAPI.ret import Damage
 
+from pydantic import BaseModel
+
 
 class Return(object):
     __readOnlyLock = False
@@ -150,3 +152,15 @@ class MappingInfo(collections.UserDict):
     def playerID(self): return self['playerID']
     @property
     def playerName(self): return self['playerName']
+
+
+class ReserveData(BaseModel):
+    id: int
+    period: int
+    stage: int
+    step: int
+    group: int
+    member: int
+
+    class Config:
+        orm_mode = True
