@@ -4,7 +4,6 @@ from peewee import IntegerField, CharField, PrimaryKeyField,BigIntegerField,Bool
 
 class Reserve(BaseModel):
     id = PrimaryKeyField()
-    time = BigIntegerField(help_text="时间")
     period = CharField(help_text="期数")
     stage = IntegerField(help_text="阶段")
     step = IntegerField(help_text="位置")

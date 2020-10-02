@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from Plugin.pcr.cron import NotExecutedx
 
 
-from .ret import BossInfoReturn, MappingInfo
+from .ret import BossInfoReturn, MappingInfo, ReserveData
 
 from .exception import BigFunAPIisLogin, DuplicateNameError, NotFoundPlayerMapping, StepNotFound
 
@@ -22,6 +22,7 @@ from .APIAuthInfo import getAuthInfo, setAuthInfo
 
 from ..orm.damage import Damage
 from ..orm.bind import Bind
+from ..orm.reserve import Reserve
 from .ret import DamageLogListReturn, DamageLogReturn
 from ..utlis import tz_UTC
 
@@ -103,8 +104,8 @@ class PCR():
 
         for pID in pidList:
             bind: Any
-            bind, create = Bind.get_or_create(group=self.gid, playerID=pID,
-                                              member=None, playerName=mapping[pID])
+            bind, create = Bind.get_or_create(
+                group=self.gid, playerID=pID, playerName=mapping[pID])
             if not create:
                 if bind.playerName != mapping[pID]:
                     bind.playerName = mapping[pID]
@@ -333,9 +334,9 @@ class PCR():
         except DoesNotExist:
             return "NotFound", None
 
-    def delBind(self, member, playerid,force=False):
+    def delBind(self, member, playerid, force=False):
         try:
-            log = Bind.get(group=self.gid, playerID=playerid,member=member)
+            log = Bind.get(group=self.gid, playerID=playerid, member=member)
             if log.member == member or force:
                 log.member = None
                 log.save()
@@ -344,3 +345,76 @@ class PCR():
                 return "Not Bind You", str(log.playerName)
         except DoesNotExist:
             return "NotFound", None
+
+    def addReserve(self, uid: int, step: int):
+        """
+        添加一个预约
+        """
+        if not 1 <= step <= 6:
+            raise ValueError
+        bossinfo = self.currentBossInfo()
+        stage = bossinfo.stage if step >= bossinfo.step else bossinfo.stage + 1
+        step = step
+        ormObj, isexists = Reserve.get_or_create(period=self.battleID,
+                                                 stage=stage,
+                                                 step=step,
+                                                 member=uid,
+                                                 group=self.gid)
+        return isexists, ReserveData.from_orm(ormObj)
+
+    def _ORMqueryReserve(self, stage, step, member: Optional[int] = None, latest: Optional[bool] = False):
+
+        if member is None:
+            if latest:
+                 query = Reserve.select().where(Reserve.period == self.battleID,
+                                           Reserve.stage == stage,
+                                           Reserve.step == step,
+                                           Reserve.group == self.gid)
+            else:
+                query = Reserve.select().where(Reserve.period == self.battleID,
+                                            Reserve.stage == stage,
+                                            Reserve.step == step,
+                                            Reserve.group == self.gid)
+        else:
+            query = Reserve.select().where(Reserve.period == self.battleID,
+                                           Reserve.stage == stage,
+                                           Reserve.step == step,
+                                           Reserve.group == self.gid,
+                                           Reserve.member == member)
+        for row in query:
+            row: Reserve
+            yield row
+
+    def queryAllReserve(self, member: Optional[int] = None):
+        bossInfo = self.currentBossInfo()
+        stage = bossInfo.stage
+        if member is None:
+            query = Reserve.select().where(Reserve.period == self.battleID,
+                                           Reserve.stage >= stage,
+                                           Reserve.group == self.gid)
+        else:
+            query = Reserve.select().where(Reserve.period == self.battleID,
+                                           Reserve.stage >= stage,
+                                           Reserve.group == self.gid,
+                                           Reserve.member == member)
+
+        for row in query:
+            row: Reserve
+            yield row
+
+    def queryReserve(self, stage, step, member: Optional[int] = None):
+        """查询指定预约的用户列表"""
+
+        for row in self._ORMqueryReserve(stage, step, member):
+            yield ReserveData.from_orm(row)
+
+    def delReserve(self, stage, step, member: Optional[int] = None):
+        """删除指定预约的用户列表"""
+        emtry = True
+        for row in self._ORMqueryReserve(stage, step, member):
+            emtry = False
+            row.delete_instance()
+        if emtry:
+            return False
+        else:
+            return True
